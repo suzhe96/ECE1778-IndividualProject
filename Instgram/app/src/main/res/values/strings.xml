@@ -2,6 +2,6 @@
     <string name="app_name">Instgram</string>
     <string name="extra_email">extraEmail</string>
     <string name="firestore_category_users">users/</string>
-    <string name="firestore_category_users_doc_username">users_doc_username</string>
-    <string name="firestore_category_users_doc_shortbio">users_doc_shortbio</string>
+    <string name="firestore_category_users_doc_username">usersDocUserName</string>
+    <string name="firestore_category_users_doc_shortbio">usersDocShortBio</string>
 </resources>

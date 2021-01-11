@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -88,5 +89,9 @@ public class ProfilePage extends AppCompatActivity {
         Log.d(LOG_TAG, "Sign out button being clicked");
         mAuth.signOut();
         startActivity(profileIntentSignOut);
+    }
+
+    public void profileImage(View view) {
+        Toast.makeText(this, "Upload profile pic", Toast.LENGTH_SHORT).show();
     }
 }

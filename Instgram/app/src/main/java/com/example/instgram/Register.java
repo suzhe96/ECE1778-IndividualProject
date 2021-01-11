@@ -1,13 +1,22 @@
 package com.example.instgram;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Shader;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -44,6 +53,12 @@ public class Register extends AppCompatActivity {
     private EditText regEditTextUserName = null;
     private EditText regEditTextConfirmPassword = null;
 
+    // ImageView
+    private ImageView regImageViewProfilePic = null;
+
+    // Bitmap
+    private Bitmap regBitmapProfilePic = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,10 +69,36 @@ public class Register extends AppCompatActivity {
         regEditTextPassword = findViewById(R.id.regPassword);
         regEditTextUserName = findViewById(R.id.regUserName);
         regEditTextConfirmPassword = findViewById(R.id.regPasswordConfirm);
+        // Initialize ImageView
+        regImageViewProfilePic = findViewById(R.id.regProfilePic);
         // Initialize Intent
         regProfileIntent = new Intent(Register.this, ProfilePage.class);
         // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
+
+        if(savedInstanceState != null) {
+            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
+                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
+                        .findFragmentByTag(BitmapDataFragment.TAG);
+                regBitmapProfilePic = bitmapFragment.getData();
+                regImageViewProfilePic.setImageBitmap(regBitmapProfilePic);
+                getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
+            }
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (regBitmapProfilePic != null) {
+            getSupportFragmentManager().beginTransaction()
+                    .add(BitmapDataFragment.newInstance(regBitmapProfilePic),
+                            BitmapDataFragment.TAG)
+                    .commit();
+            outState.putBoolean(BitmapDataFragment.EXISTED, true);
+        } else {
+            outState.putBoolean(BitmapDataFragment.EXISTED, false);
+        }
+        super.onSaveInstanceState(outState);
     }
 
     private boolean validateUserInput(String password, String username, String email) {
@@ -130,6 +171,48 @@ public class Register extends AppCompatActivity {
             Log.w(LOG_TAG, "Inconsistent password in regSignUp.");
             Toast.makeText(Register.this, "Inconsistent password.",
                     Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    public void regUploadProfilePic(View view) {
+        Intent cameraIntent = new Intent();
+        cameraIntent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
+        startActivityForResult(cameraIntent, 100);
+    }
+
+    // Reference: https://blog.csdn.net/m0_37358427/article/details/83012857
+    private Bitmap toRoundBitMap(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int mRadius = Math.min(height, width) / 2;
+        float mScale = (mRadius * 2.0f) / Math.min(height, width);
+        BitmapShader bitmapShader = new BitmapShader(bitmap,
+                Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        Matrix matrix = new Matrix();
+        Paint mPaint = new Paint();
+        mPaint.setAntiAlias(true);
+        Bitmap backgroundBitMap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(backgroundBitMap);
+        matrix.setScale(mScale, mScale);
+        bitmapShader.setLocalMatrix(matrix);
+        mPaint.setShader(bitmapShader);
+        canvas.drawCircle(mRadius, mRadius, mRadius, mPaint);
+        return backgroundBitMap;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100 && data != null) {
+            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+            if (bitmap != null) {
+                Bitmap roundedBitmap = toRoundBitMap(bitmap);
+                regBitmapProfilePic = roundedBitmap;
+                regImageViewProfilePic.setImageBitmap(roundedBitmap);
+            }
+        } else {
+            Log.w(LOG_TAG, "set profile picture on activity failed.");
         }
 
     }

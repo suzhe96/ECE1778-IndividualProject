@@ -22,15 +22,16 @@
             <ImageView
                 android:id="@+id/regProfilePic"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="48dp"
+                android:shape="oval"
+                android:layout_height="164dp"
+                android:onClick="regUploadProfilePic"
                 app:srcCompat="@android:mipmap/sym_def_app_icon" />
 
             <EditText
                 android:id="@+id/regEmail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="16dp"
                 android:inputType="textWebEmailAddress|textEmailAddress|textEmailSubject"
                 android:hint="Email" />

@@ -23,6 +23,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="64dp"
+                android:onClick="profileImage"
                 app:srcCompat="@android:mipmap/sym_def_app_icon" />
 
             <TextView
