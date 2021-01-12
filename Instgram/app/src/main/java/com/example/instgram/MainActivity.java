@@ -6,6 +6,7 @@ import android.provider.ContactsContract;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -60,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     public void mainLogIn(View view) {
         String loginEmail = mainEditTextEmail.getText().toString();
         String loginPassword = getMainEditTextPassword.getText().toString();
-        mAuth.signInWithEmailAndPassword(loginEmail, loginPassword)
+        mAuth.signInWithEmailAndPassword(loginEmail.toLowerCase(), loginPassword)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
@@ -68,6 +69,10 @@ public class MainActivity extends AppCompatActivity {
                             Log.d(LOG_TAG, "Log in successfully in mainLogIn");
                             mainProfileIntent.putExtra(getString(R.string.extra_email), loginEmail);
                             startActivity(mainProfileIntent);
+                        } else {
+                            Log.d(LOG_TAG, "Log in failed", task.getException());
+                            Toast.makeText(MainActivity.this,
+                                    "Authentication failed.", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });

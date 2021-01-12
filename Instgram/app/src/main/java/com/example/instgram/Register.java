@@ -20,6 +20,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -27,7 +29,11 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,12 +45,17 @@ public class Register extends AppCompatActivity {
     public static final String regExtraShortBio =
             "com.example.instgram.extra.REG_PROFILE_SHORT_BIO";
 
-    // [START declare_auth]
-    private FirebaseAuth mAuth;
-    // [END declare_auth]
+    // Firebase Auth
+    private FirebaseAuth mAuth = null;
+
+    // Firebase Cloud Storage
+    FirebaseStorage mStorage = null;
 
     // Intent
     private Intent regProfileIntent = null;
+
+    // Intent Request Code
+    private static int regRequestCodeProfileCam = 100;
 
     // EditView
     private EditText regEditTextShortBio = null;
@@ -59,10 +70,15 @@ public class Register extends AppCompatActivity {
     // Bitmap
     private Bitmap regBitmapProfilePic = null;
 
+    // Utils
+    private Utils utils = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
+        // Initialize utils
+        utils = new Utils();
         // Initialize EditText
         regEditTextShortBio = findViewById(R.id.regBio);
         regEditTextEmail = findViewById(R.id.regEmail);
@@ -75,13 +91,15 @@ public class Register extends AppCompatActivity {
         regProfileIntent = new Intent(Register.this, ProfilePage.class);
         // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
+        // Initialize Firebase Cloud Storage
+        mStorage = FirebaseStorage.getInstance();
 
         if(savedInstanceState != null) {
             if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
                 BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
                         .findFragmentByTag(BitmapDataFragment.TAG);
                 regBitmapProfilePic = bitmapFragment.getData();
-                regImageViewProfilePic.setImageBitmap(regBitmapProfilePic);
+                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(regBitmapProfilePic));
                 getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
             }
         }
@@ -101,18 +119,51 @@ public class Register extends AppCompatActivity {
         super.onSaveInstanceState(outState);
     }
 
-    private boolean validateUserInput(String password, String username, String email) {
-        if (password.isEmpty() || username.isEmpty() || email.isEmpty()) {
-            return false;
-        }
-        return true;
+    private void regRouteToProfile() {
+        regProfileIntent.putExtra(getString(R.string.extra_email),
+                regEditTextEmail.getText().toString());
+        startActivity(regProfileIntent);
     }
+
+    private void syncDataToCloudStorage() {
+        if (regBitmapProfilePic == null) {
+            Log.w(LOG_TAG, "empty profile bitmap while uploaded.");
+            regRouteToProfile();
+        } else {
+            String email = regEditTextEmail.getText().toString();
+            String key = getString(R.string.cloud_storage_profile_pic) +
+                    utils.processEmailString(email) + getString(R.string.pic_format_jpg);
+            StorageReference regStorageRef = mStorage.getReference();
+            StorageReference regProfilePicRef = regStorageRef.child(key);
+            ByteArrayOutputStream blob = new ByteArrayOutputStream();
+            regBitmapProfilePic.compress(Bitmap.CompressFormat.JPEG, 100, blob);
+            byte[] data = blob.toByteArray();
+            UploadTask uploadTask = regProfilePicRef.putBytes(data);
+            uploadTask.addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception exception) {
+                    Log.w(LOG_TAG, "Failed to upload profile pic to cloud storage",
+                            exception);
+                    Toast.makeText(Register.this,
+                            "Cloud storage upload failed", Toast.LENGTH_SHORT).show();
+                }
+            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                    Log.d(LOG_TAG, "Cloud storage upload succeed.");
+                    regRouteToProfile();
+                }
+            });
+        }
+    }
+
 
     private void syncDataToFirestore() {
         String userName = regEditTextUserName.getText().toString();
         String shortBio = regEditTextShortBio.getText().toString();
         String email = regEditTextEmail.getText().toString();
-        String regDocName = getString(R.string.firestore_category_users) + email;
+        String regDocName = getString(R.string.firestore_category_users) +
+                utils.processEmailString(email);
         DocumentReference regDocRef = FirebaseFirestore.getInstance().document(regDocName);
 
         Map<String, Object> userData = new HashMap<String, Object>();
@@ -125,8 +176,7 @@ public class Register extends AppCompatActivity {
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
                     Log.d(LOG_TAG, "succeeded to sync user data to firestore.");
-                    regProfileIntent.putExtra(getString(R.string.extra_email), email);
-                    startActivity(regProfileIntent);
+                    syncDataToCloudStorage();
                 } else {
                     Log.w(LOG_TAG, "failed to sync user data to firestore",
                             task.getException());
@@ -144,15 +194,15 @@ public class Register extends AppCompatActivity {
         String signInConfirmPassword = regEditTextConfirmPassword.getText().toString();
         String signInUserName = regEditTextUserName.getText().toString();
 
-        if(!validateUserInput(signInPassword, signInUserName, signInEmail)) {
-            Log.w(LOG_TAG, "createUserWithEmail:failure input validation");
+        if(signInPassword.isEmpty() || signInUserName.isEmpty() || signInEmail.isEmpty()) {
+            Log.w(LOG_TAG, "createUserWithEmail:failure input validation: null string");
             Toast.makeText(Register.this,
-                    "User input validation failed.", Toast.LENGTH_SHORT).show();
+                    "Empty user input", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (signInPassword.equals(signInConfirmPassword)) {
-            mAuth.createUserWithEmailAndPassword(signInEmail, signInPassword)
+            mAuth.createUserWithEmailAndPassword(signInEmail.toLowerCase(), signInPassword)
                     .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                         @Override
                         public void onComplete(@NonNull Task<AuthResult> task) {
@@ -172,44 +222,22 @@ public class Register extends AppCompatActivity {
             Toast.makeText(Register.this, "Inconsistent password.",
                     Toast.LENGTH_SHORT).show();
         }
-
     }
 
     public void regUploadProfilePic(View view) {
         Intent cameraIntent = new Intent();
         cameraIntent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult(cameraIntent, 100);
-    }
-
-    // Reference: https://blog.csdn.net/m0_37358427/article/details/83012857
-    private Bitmap toRoundBitMap(Bitmap bitmap) {
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        int mRadius = Math.min(height, width) / 2;
-        float mScale = (mRadius * 2.0f) / Math.min(height, width);
-        BitmapShader bitmapShader = new BitmapShader(bitmap,
-                Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-        Matrix matrix = new Matrix();
-        Paint mPaint = new Paint();
-        mPaint.setAntiAlias(true);
-        Bitmap backgroundBitMap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(backgroundBitMap);
-        matrix.setScale(mScale, mScale);
-        bitmapShader.setLocalMatrix(matrix);
-        mPaint.setShader(bitmapShader);
-        canvas.drawCircle(mRadius, mRadius, mRadius, mPaint);
-        return backgroundBitMap;
+        startActivityForResult(cameraIntent, regRequestCodeProfileCam);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 100 && data != null) {
+        if (requestCode == regRequestCodeProfileCam && data != null) {
             Bitmap bitmap = (Bitmap) data.getExtras().get("data");
             if (bitmap != null) {
-                Bitmap roundedBitmap = toRoundBitMap(bitmap);
-                regBitmapProfilePic = roundedBitmap;
-                regImageViewProfilePic.setImageBitmap(roundedBitmap);
+                regBitmapProfilePic = bitmap;
+                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(bitmap));
             }
         } else {
             Log.w(LOG_TAG, "set profile picture on activity failed.");
