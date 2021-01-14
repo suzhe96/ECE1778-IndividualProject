@@ -22,10 +22,10 @@
             <ImageView
                 android:id="@+id/regProfilePic"
                 android:layout_width="match_parent"
-                android:shape="oval"
-                android:layout_height="164dp"
+                android:layout_height="129dp"
                 android:onClick="regUploadProfilePic"
-                app:srcCompat="@android:mipmap/sym_def_app_icon" />
+                android:shape="oval"
+                app:srcCompat="@drawable/anonymous2" />
 
             <EditText
                 android:id="@+id/regEmail"
@@ -77,9 +77,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="256dp"
-                android:background="#FFFF00"
+                android:background="@color/LightSteelBlue"
                 android:onClick="regSignUp"
-                android:text="SIGN UP" />
+                android:text="SIGN UP"
+                android:textColor="@color/White"/>
         </LinearLayout>
     </ScrollView>
 </RelativeLayout>

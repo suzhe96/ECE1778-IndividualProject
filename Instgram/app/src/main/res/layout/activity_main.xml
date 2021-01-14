@@ -32,9 +32,10 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="36dp"
         android:layout_marginBottom="24dp"
-        android:background="#FFFF00"
+        android:background="@color/LightSteelBlue"
         android:onClick="mainLogIn"
-        android:text="LOG IN" />
+        android:text="LOG IN"
+        android:textColor="@color/White"/>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -69,9 +70,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:background="#FFFF00"
+        android:background="@color/LightSteelBlue"
         android:onClick="mainSignUp"
-        android:text="SIGN UP" />
+        android:text="SIGN UP"
+        android:textColor="@color/White"/>
 
 
 

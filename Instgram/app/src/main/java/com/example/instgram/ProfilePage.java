@@ -5,15 +5,15 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -37,7 +37,6 @@ public class ProfilePage extends AppCompatActivity {
 
     // Intent
     private Intent profileIntentSignOut =  null;
-    private Intent profileIntentReceived = null;
 
     // TextView
     private TextView profileTextViewShortBio = null;
@@ -55,19 +54,32 @@ public class ProfilePage extends AppCompatActivity {
     // Firebase Cloud Storage
     FirebaseStorage mStorage = null;
 
-    // User Email
-    private String profileUserEmail = null;
-
     // Bitmap
     private Bitmap profileBitmapProfilePic = null;
 
     // 1M
     private static final long ONE_MEGABYTE = 1024 * 1024;
 
+
+    private void setVisibilityForDone(Boolean isDone) {
+        if (isDone) {
+            profileTextViewShortBio.setVisibility(View.VISIBLE);
+            profileTextViewDisplayName.setVisibility(View.VISIBLE);
+            profileImageViewProfilePic.setVisibility(View.VISIBLE);
+            profileProgressBarLoading.setVisibility(View.GONE);
+        } else {
+            profileTextViewShortBio.setVisibility(View.INVISIBLE);
+            profileTextViewDisplayName.setVisibility(View.INVISIBLE);
+            profileImageViewProfilePic.setVisibility(View.INVISIBLE);
+            profileProgressBarLoading.setVisibility(View.VISIBLE);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile_page);
+        setTitle("Profile");
 
         // Initialize utils
         utils = new Utils();
@@ -90,13 +102,9 @@ public class ProfilePage extends AppCompatActivity {
 
         // Initialize Intent
         profileIntentSignOut = new Intent(this, MainActivity.class);
-        profileIntentReceived = getIntent();
 
         // Visibility setting for loading
-        profileTextViewShortBio.setVisibility(View.INVISIBLE);
-        profileTextViewDisplayName.setVisibility(View.INVISIBLE);
-        profileImageViewProfilePic.setVisibility(View.INVISIBLE);
-        profileProgressBarLoading.setVisibility(View.VISIBLE);
+        setVisibilityForDone(false);
 
 
         if(savedInstanceState != null) {
@@ -105,10 +113,31 @@ public class ProfilePage extends AppCompatActivity {
                         .findFragmentByTag(BitmapDataFragment.TAG);
                 profileBitmapProfilePic = bitmapFragment.getData();
                 profileImageViewProfilePic.setImageBitmap(
-                        utils.toRoundBitMap(profileBitmapProfilePic));
+                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic)));
                 getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
             }
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.address_list, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_signout:
+                Log.d(LOG_TAG, "Sign out button being clicked");
+                mAuth.signOut();
+                startActivity(profileIntentSignOut);
+                break;
+            default:
+                break;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -119,7 +148,8 @@ public class ProfilePage extends AppCompatActivity {
             Log.w(LOG_TAG, "No current user available.");
         }
 
-        profileUserEmail = currentUser.getEmail();
+        // User Email
+        String profileUserEmail = currentUser.getEmail();
         if (profileUserEmail == null) {
             Log.w(LOG_TAG, "Failed to get email from current user.");
         }
@@ -150,13 +180,11 @@ public class ProfilePage extends AppCompatActivity {
             @Override
             public void onSuccess(byte[] bytes) {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(bitmap));
+                profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                        utils.cropProfileBitmap(bitmap)));
 
                 // Set Visibility
-                profileTextViewShortBio.setVisibility(View.VISIBLE);
-                profileTextViewDisplayName.setVisibility(View.VISIBLE);
-                profileImageViewProfilePic.setVisibility(View.VISIBLE);
-                profileProgressBarLoading.setVisibility(View.GONE);
+                setVisibilityForDone(true);
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override

@@ -2,7 +2,6 @@ package com.example.instgram;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.provider.ContactsContract;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -13,10 +12,11 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.google.errorprone.annotations.ForOverride;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
     // Log
@@ -34,9 +34,13 @@ public class MainActivity extends AppCompatActivity {
     private Intent mainSignUpIntent = null;
     private Intent mainProfileIntent = null;
 
+    // Util
+    private Utils utils = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setTitle("Log In");
         setContentView(R.layout.activity_main);
         // Initialize EditText
         mainEditTextEmail = findViewById(R.id.mainEmail);
@@ -44,6 +48,8 @@ public class MainActivity extends AppCompatActivity {
         // Initialize Intent
         mainSignUpIntent = new Intent(MainActivity.this, Register.class);
         mainProfileIntent = new Intent(MainActivity.this, ProfilePage.class);
+        // Initialize Utils
+        utils = new Utils();
         // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
     }
@@ -58,9 +64,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+
     public void mainLogIn(View view) {
         String loginEmail = mainEditTextEmail.getText().toString();
         String loginPassword = getMainEditTextPassword.getText().toString();
+        if (loginEmail.isEmpty() || loginPassword.isEmpty()) {
+            Log.w(LOG_TAG, "Empty user input");
+            Toast.makeText(MainActivity.this,
+                    "ERROR_EMPTY_INPUT", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         mAuth.signInWithEmailAndPassword(loginEmail.toLowerCase(), loginPassword)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -70,9 +85,10 @@ public class MainActivity extends AppCompatActivity {
                             mainProfileIntent.putExtra(getString(R.string.extra_email), loginEmail);
                             startActivity(mainProfileIntent);
                         } else {
-                            Log.d(LOG_TAG, "Log in failed", task.getException());
+                            Log.w(LOG_TAG, "Log in failed", task.getException());
                             Toast.makeText(MainActivity.this,
-                                    "Authentication failed.", Toast.LENGTH_SHORT).show();
+                                    utils.fireAuthExceptionCode(task.getException()),
+                                    Toast.LENGTH_SHORT).show();
                         }
                     }
                 });

@@ -2,11 +2,7 @@ package com.example.instgram;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.Shader;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -16,7 +12,6 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -25,8 +20,6 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
@@ -40,6 +33,7 @@ import java.util.Map;
 public class Register extends AppCompatActivity {
     // LOG
     private static final String LOG_TAG = Register.class.getSimpleName();
+    private static final String TOAST_TAG = "Sign up failed: ";
 
     // EXTRA
     public static final String regExtraShortBio =
@@ -76,7 +70,9 @@ public class Register extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setTitle("Register");
         setContentView(R.layout.activity_register);
+
         // Initialize utils
         utils = new Utils();
         // Initialize EditText
@@ -93,6 +89,12 @@ public class Register extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         // Initialize Firebase Cloud Storage
         mStorage = FirebaseStorage.getInstance();
+
+        // Get bitmap from Resource
+        regBitmapProfilePic = BitmapFactory.decodeResource(getResources(),
+                R.drawable.anonymous2);
+        regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                utils.cropProfileBitmap(regBitmapProfilePic)));
 
         if(savedInstanceState != null) {
             if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
@@ -145,7 +147,8 @@ public class Register extends AppCompatActivity {
                     Log.w(LOG_TAG, "Failed to upload profile pic to cloud storage",
                             exception);
                     Toast.makeText(Register.this,
-                            "Cloud storage upload failed", Toast.LENGTH_SHORT).show();
+                            "Storage: " + utils.fireStoreExceptionCode(exception),
+                            Toast.LENGTH_SHORT).show();
                 }
             }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                 @Override
@@ -181,7 +184,8 @@ public class Register extends AppCompatActivity {
                     Log.w(LOG_TAG, "failed to sync user data to firestore",
                             task.getException());
                     Toast.makeText(Register.this,
-                            "Sync data failed.", Toast.LENGTH_SHORT).show();
+                            "fireStore: " + utils.fireStoreExceptionCode(task.getException()),
+                            Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -197,31 +201,34 @@ public class Register extends AppCompatActivity {
         if(signInPassword.isEmpty() || signInUserName.isEmpty() || signInEmail.isEmpty()) {
             Log.w(LOG_TAG, "createUserWithEmail:failure input validation: null string");
             Toast.makeText(Register.this,
-                    "Empty user input", Toast.LENGTH_SHORT).show();
+                    "ERROR_EMPTY_INPUT", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (signInPassword.equals(signInConfirmPassword)) {
-            mAuth.createUserWithEmailAndPassword(signInEmail.toLowerCase(), signInPassword)
-                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                        @Override
-                        public void onComplete(@NonNull Task<AuthResult> task) {
-                            if (task.isSuccessful()) {
-                                Log.d(LOG_TAG, "Log in successfully in mainLogIn");
-                                syncDataToFirestore();
-                            } else {
-                                Log.w(LOG_TAG, "createUserWithEmail:failure",
-                                        task.getException());
-                                Toast.makeText(Register.this,
-                                        "Authentication failed.", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-        } else {
-            Log.w(LOG_TAG, "Inconsistent password in regSignUp.");
-            Toast.makeText(Register.this, "Inconsistent password.",
-                    Toast.LENGTH_SHORT).show();
+        if (!signInPassword.equals(signInConfirmPassword)) {
+            Log.w(LOG_TAG, "createUserWithEmail:failure inconsistent password");
+            Toast.makeText(Register.this,
+                    "ERROR_INCONSISTENT_PWD", Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        mAuth.createUserWithEmailAndPassword(signInEmail.toLowerCase(), signInPassword)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            Log.d(LOG_TAG, "Log in successfully in regSignUp");
+                            syncDataToFirestore();
+                        } else {
+                            Log.w(LOG_TAG, "createUserWithEmail:failure",
+                                    task.getException());
+                            Toast.makeText(Register.this,
+                                    utils.fireAuthExceptionCode(task.getException()),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+
     }
 
     public void regUploadProfilePic(View view) {
@@ -237,7 +244,8 @@ public class Register extends AppCompatActivity {
             Bitmap bitmap = (Bitmap) data.getExtras().get("data");
             if (bitmap != null) {
                 regBitmapProfilePic = bitmap;
-                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(bitmap));
+                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                        utils.cropProfileBitmap(regBitmapProfilePic)));
             }
         } else {
             Log.w(LOG_TAG, "set profile picture on activity failed.");
