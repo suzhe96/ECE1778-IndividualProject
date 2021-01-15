@@ -7,8 +7,10 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -61,6 +63,12 @@ public class Register extends AppCompatActivity {
     // ImageView
     private ImageView regImageViewProfilePic = null;
 
+    // ProgressBar
+    private ProgressBar regProgressBarLoadingIcon = null;
+
+    // Button
+    private Button regButtonSignUp = null;
+
     // Bitmap
     private Bitmap regBitmapProfilePic = null;
 
@@ -83,6 +91,10 @@ public class Register extends AppCompatActivity {
         regEditTextConfirmPassword = findViewById(R.id.regPasswordConfirm);
         // Initialize ImageView
         regImageViewProfilePic = findViewById(R.id.regProfilePic);
+        // Initialize ProgressBar
+        regProgressBarLoadingIcon = findViewById(R.id.regLoadingIcon);
+        // Initialize Button
+        regButtonSignUp =findViewById(R.id.regSignUpButton);
         // Initialize Intent
         regProfileIntent = new Intent(Register.this, ProfilePage.class);
         // Initialize Firebase Auth
@@ -121,6 +133,16 @@ public class Register extends AppCompatActivity {
         super.onSaveInstanceState(outState);
     }
 
+    private void setVisibilityForLoading(Boolean loadingVisible) {
+        if(loadingVisible) {
+            regButtonSignUp.setVisibility(View.GONE);
+            regProgressBarLoadingIcon.setVisibility(View.VISIBLE);
+        } else {
+            regButtonSignUp.setVisibility(View.VISIBLE);
+            regProgressBarLoadingIcon.setVisibility(View.GONE);
+        }
+    }
+
     private void regRouteToProfile() {
         regProfileIntent.putExtra(getString(R.string.extra_email),
                 regEditTextEmail.getText().toString());
@@ -146,6 +168,7 @@ public class Register extends AppCompatActivity {
                 public void onFailure(@NonNull Exception exception) {
                     Log.w(LOG_TAG, "Failed to upload profile pic to cloud storage",
                             exception);
+                    setVisibilityForLoading(false);
                     Toast.makeText(Register.this,
                             "Storage: " + utils.fireStoreExceptionCode(exception),
                             Toast.LENGTH_SHORT).show();
@@ -183,6 +206,7 @@ public class Register extends AppCompatActivity {
                 } else {
                     Log.w(LOG_TAG, "failed to sync user data to firestore",
                             task.getException());
+                    setVisibilityForLoading(false);
                     Toast.makeText(Register.this,
                             "fireStore: " + utils.fireStoreExceptionCode(task.getException()),
                             Toast.LENGTH_SHORT).show();
@@ -212,6 +236,8 @@ public class Register extends AppCompatActivity {
             return;
         }
 
+        // set loading icon visible
+        setVisibilityForLoading(true);
         mAuth.createUserWithEmailAndPassword(signInEmail.toLowerCase(), signInPassword)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -222,6 +248,7 @@ public class Register extends AppCompatActivity {
                         } else {
                             Log.w(LOG_TAG, "createUserWithEmail:failure",
                                     task.getException());
+                            setVisibilityForLoading(false);
                             Toast.makeText(Register.this,
                                     utils.fireAuthExceptionCode(task.getException()),
                                     Toast.LENGTH_SHORT).show();

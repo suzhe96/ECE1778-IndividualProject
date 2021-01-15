@@ -4,7 +4,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -30,6 +32,12 @@ public class MainActivity extends AppCompatActivity {
     private EditText mainEditTextEmail = null;
     private EditText getMainEditTextPassword = null;
 
+    // ProgressBar
+    private ProgressBar mainProgressBarLogIn = null;
+
+    // Button
+    private Button mainButtonLogIn = null;
+
     // Intent
     private Intent mainSignUpIntent = null;
     private Intent mainProfileIntent = null;
@@ -45,6 +53,10 @@ public class MainActivity extends AppCompatActivity {
         // Initialize EditText
         mainEditTextEmail = findViewById(R.id.mainEmail);
         getMainEditTextPassword = findViewById(R.id.mainPassword);
+        // Initialize ProgressBar
+        mainProgressBarLogIn = findViewById(R.id.mainLoadingIconLogIn);
+        // Initialize Button
+        mainButtonLogIn = findViewById(R.id.mainLoginButton);
         // Initialize Intent
         mainSignUpIntent = new Intent(MainActivity.this, Register.class);
         mainProfileIntent = new Intent(MainActivity.this, ProfilePage.class);
@@ -64,7 +76,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+    private void setVisibilityForLoading(Boolean loadingVisble) {
+        if (loadingVisble) {
+            mainProgressBarLogIn.setVisibility(View.VISIBLE);
+            mainButtonLogIn.setVisibility(View.GONE);
+        } else {
+            mainProgressBarLogIn.setVisibility(View.GONE);
+            mainButtonLogIn.setVisibility(View.VISIBLE);
+        }
+    }
 
     public void mainLogIn(View view) {
         String loginEmail = mainEditTextEmail.getText().toString();
@@ -76,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // set loading icon visable
+        setVisibilityForLoading(true);
         mAuth.signInWithEmailAndPassword(loginEmail.toLowerCase(), loginPassword)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -86,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
                             startActivity(mainProfileIntent);
                         } else {
                             Log.w(LOG_TAG, "Log in failed", task.getException());
+                            setVisibilityForLoading(false);
                             Toast.makeText(MainActivity.this,
                                     utils.fireAuthExceptionCode(task.getException()),
                                     Toast.LENGTH_SHORT).show();
