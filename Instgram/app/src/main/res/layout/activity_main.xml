@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -8,82 +8,67 @@
     android:padding="@dimen/activity_padding"
     tools:context=".MainActivity">
 
-    <EditText
-        android:id="@+id/mainEmail"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:layout_marginBottom="24dp"
-        android:inputType="textWebEmailAddress|textEmailAddress|textEmailSubject"
-        android:hint="Email" />
+        android:layout_height="match_parent"
+        android:scrollbars="none"
+        android:scrollbarSize="0dp">
 
-    <EditText
-        android:id="@+id/mainPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="24dp"
-        android:inputType="textVisiblePassword|textPassword|textWebPassword"
-        android:hint="Password" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
 
-    <ProgressBar
-        android:id="@+id/mainLoadingIconLogIn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminate="true"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+        <EditText
+            android:id="@+id/mainEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:layout_marginBottom="24dp"
+            android:inputType="textWebEmailAddress|textEmailAddress|textEmailSubject"
+            android:hint="Email" />
 
-    <Button
-        android:id="@+id/mainLoginButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:layout_marginBottom="24dp"
-        android:background="@color/LightSteelBlue"
-        android:onClick="mainLogIn"
-        android:text="LOG IN"
-        android:visibility="visible"
-        android:textColor="@color/White"/>
+        <EditText
+            android:id="@+id/mainPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="24dp"
+            android:inputType="textVisiblePassword|textPassword|textWebPassword"
+            android:hint="Password" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/rl"
-        android:orientation="horizontal"
-        android:gravity="center">
-
-        <View
-            android:layout_width="wrap_content"
-            android:layout_height="1dp"
-            android:layout_weight="1"
-            android:background="@android:color/darker_gray"
-            />
-        <TextView
-            android:layout_marginLeft="16dp"
-            android:layout_marginRight="16dp"
+        <ProgressBar
+            android:id="@+id/mainLoadingIconLogIn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="OR"
-            />
-        <View
-            android:layout_width="wrap_content"
-            android:layout_height="1dp"
-            android:layout_weight="1"
-            android:background="@android:color/darker_gray"
-            />
-    </LinearLayout>
+            android:indeterminate="true"
+            android:layout_gravity="center"
+            android:visibility="gone" />
 
-    <Button
-        android:id="@+id/mainSignUp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:background="@color/LightSteelBlue"
-        android:onClick="mainSignUp"
-        android:text="SIGN UP"
-        android:textColor="@color/White"/>
+        <Button
+            android:id="@+id/mainLoginButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:layout_marginBottom="24dp"
+            android:background="@color/LightSteelBlue"
+            android:onClick="mainLogIn"
+            android:text="LOG IN"
+            android:visibility="visible"
+            android:textColor="@color/White"/>
+
+        <Button
+            android:id="@+id/mainSignUp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@color/LightSteelBlue"
+            android:onClick="mainSignUp"
+            android:text="SIGN UP"
+            android:textColor="@color/White"/>
+
+        </LinearLayout>
+    </ScrollView>
 
 
-
-</LinearLayout>
+</RelativeLayout>

@@ -24,7 +24,9 @@
             <ImageView
                 android:id="@+id/regProfilePic"
                 android:layout_width="match_parent"
-                android:layout_height="129dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
                 android:onClick="regUploadProfilePic"
                 android:shape="oval"
                 app:srcCompat="@drawable/anonymous2" />

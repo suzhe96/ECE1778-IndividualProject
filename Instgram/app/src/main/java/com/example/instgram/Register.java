@@ -113,7 +113,8 @@ public class Register extends AppCompatActivity {
                 BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
                         .findFragmentByTag(BitmapDataFragment.TAG);
                 regBitmapProfilePic = bitmapFragment.getData();
-                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(regBitmapProfilePic));
+                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                        utils.cropProfileBitmap(regBitmapProfilePic)));
                 getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
             }
         }
