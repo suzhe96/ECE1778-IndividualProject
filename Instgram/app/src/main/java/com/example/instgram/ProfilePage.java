@@ -1,9 +1,12 @@
 package com.example.instgram;
 
+import android.app.Activity;
+import android.app.ActivityOptions;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,6 +18,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -27,6 +32,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
+
+import java.util.LinkedList;
 
 public class ProfilePage extends AppCompatActivity {
     // LOG
@@ -59,6 +66,14 @@ public class ProfilePage extends AppCompatActivity {
 
     // 1M
     private static final long ONE_MEGABYTE = 1024 * 1024;
+
+    // Intent Request Code
+    private static int profileRequestCodeContentImgCam = 100;
+
+    // RecycleView for ContentImg
+    private final LinkedList<Bitmap> mBitmapList = new LinkedList<>();
+    private RecyclerView mRecyclerView;
+    private ContentImgAdapter mAdapter;
 
 
     private void setVisibilityForDone(Boolean isDone) {
@@ -106,6 +121,15 @@ public class ProfilePage extends AppCompatActivity {
         // Visibility setting for loading
         setVisibilityForDone(false);
 
+        // Create recycler view.
+        mRecyclerView = findViewById(R.id.recyclerview);
+        // Create an adapter and supply the data to be displayed.
+        mAdapter = new ContentImgAdapter(this, mBitmapList);
+        // Connect the adapter with the recycler view.
+        mRecyclerView.setAdapter(mAdapter);
+        // Give the recycler view a default layout manager.
+        mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
+
 
         if(savedInstanceState != null) {
             if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
@@ -113,7 +137,8 @@ public class ProfilePage extends AppCompatActivity {
                         .findFragmentByTag(BitmapDataFragment.TAG);
                 profileBitmapProfilePic = bitmapFragment.getData();
                 profileImageViewProfilePic.setImageBitmap(
-                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic)));
+                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic,
+                                false)));
                 getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
             }
         }
@@ -133,6 +158,13 @@ public class ProfilePage extends AppCompatActivity {
                 Log.d(LOG_TAG, "Sign out button being clicked");
                 mAuth.signOut();
                 startActivity(profileIntentSignOut);
+                break;
+            case R.id.action_takepics:
+                Log.d(LOG_TAG, "Take pics button being clicked");
+
+                Intent cameraIntent = new Intent();
+                cameraIntent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
+                startActivityForResult(cameraIntent, profileRequestCodeContentImgCam);
                 break;
             default:
                 break;
@@ -181,7 +213,7 @@ public class ProfilePage extends AppCompatActivity {
             public void onSuccess(byte[] bytes) {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                 profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-                        utils.cropProfileBitmap(bitmap)));
+                        utils.cropProfileBitmap(bitmap, false)));
 
                 // Set Visibility
                 setVisibilityForDone(true);
@@ -208,13 +240,26 @@ public class ProfilePage extends AppCompatActivity {
         super.onSaveInstanceState(outState);
     }
 
-    public void profileSignOut(View view) {
-        Log.d(LOG_TAG, "Sign out button being clicked");
-        mAuth.signOut();
-        startActivity(profileIntentSignOut);
-    }
-
     public void profileImage(View view) {
         Toast.makeText(this, "Upload profile pic", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == profileRequestCodeContentImgCam && data != null) {
+            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+            if (bitmap != null) {
+                // Add a new word to the wordList.
+                mBitmapList.addFirst(utils.cropProfileBitmap(bitmap, true));
+                // Notify the adapter, that the data has changed.
+                mRecyclerView.getAdapter().notifyItemInserted(0);
+                // Scroll to the bottom.
+                mRecyclerView.smoothScrollToPosition(0);
+            }
+        } else {
+            Log.w(LOG_TAG, "take content img on activity failed.");
+        }
+
     }
 }

@@ -13,6 +13,8 @@ import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.storage.StorageException;
 
+import java.io.ByteArrayOutputStream;
+
 public class Utils {
     private static final String LOG_TAG = Utils.class.getSimpleName();
 
@@ -43,9 +45,19 @@ public class Utils {
         return backgroundBitMap;
     }
 
-    public Bitmap cropProfileBitmap(Bitmap bitmap) {
+    public Bitmap cropProfileBitmap(Bitmap bitmap, Boolean recycled) {
         int minLength = Math.min(bitmap.getWidth(), bitmap.getHeight());
+        if (recycled) {
+            return ThumbnailUtils.extractThumbnail(bitmap, minLength, minLength,
+                    ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
+        }
         return ThumbnailUtils.extractThumbnail(bitmap, minLength, minLength);
+    }
+
+    public byte[] compressBitmapToByteArray(Bitmap bitmap) {
+        ByteArrayOutputStream blob = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, blob);
+        return blob.toByteArray();
     }
 
     public String fireAuthExceptionCode(Exception exception) {

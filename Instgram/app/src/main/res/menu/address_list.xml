@@ -10,4 +10,10 @@
         android:icon="@drawable/action_back_arrow"
         android:title="Sign Out"
         app:showAsAction="always" />
+    <item
+        android:id="@+id/action_takepics"
+        android:orderInCategory="100"
+        android:icon="@drawable/action_camera"
+        android:title="Take Pics"
+        app:showAsAction="always"/>
 </menu>

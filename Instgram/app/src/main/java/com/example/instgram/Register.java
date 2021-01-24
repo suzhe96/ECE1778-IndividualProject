@@ -106,7 +106,7 @@ public class Register extends AppCompatActivity {
         regBitmapProfilePic = BitmapFactory.decodeResource(getResources(),
                 R.drawable.anonymous2);
         regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-                utils.cropProfileBitmap(regBitmapProfilePic)));
+                utils.cropProfileBitmap(regBitmapProfilePic, false)));
 
         if(savedInstanceState != null) {
             if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
@@ -114,7 +114,7 @@ public class Register extends AppCompatActivity {
                         .findFragmentByTag(BitmapDataFragment.TAG);
                 regBitmapProfilePic = bitmapFragment.getData();
                 regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-                        utils.cropProfileBitmap(regBitmapProfilePic)));
+                        utils.cropProfileBitmap(regBitmapProfilePic, false)));
                 getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
             }
         }
@@ -160,10 +160,8 @@ public class Register extends AppCompatActivity {
                     utils.processEmailString(email) + getString(R.string.pic_format_jpg);
             StorageReference regStorageRef = mStorage.getReference();
             StorageReference regProfilePicRef = regStorageRef.child(key);
-            ByteArrayOutputStream blob = new ByteArrayOutputStream();
-            regBitmapProfilePic.compress(Bitmap.CompressFormat.JPEG, 100, blob);
-            byte[] data = blob.toByteArray();
-            UploadTask uploadTask = regProfilePicRef.putBytes(data);
+            UploadTask uploadTask = regProfilePicRef.putBytes(
+                    utils.compressBitmapToByteArray(regBitmapProfilePic));
             uploadTask.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
@@ -273,7 +271,7 @@ public class Register extends AppCompatActivity {
             if (bitmap != null) {
                 regBitmapProfilePic = bitmap;
                 regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-                        utils.cropProfileBitmap(regBitmapProfilePic)));
+                        utils.cropProfileBitmap(regBitmapProfilePic, false)));
             }
         } else {
             Log.w(LOG_TAG, "set profile picture on activity failed.");
