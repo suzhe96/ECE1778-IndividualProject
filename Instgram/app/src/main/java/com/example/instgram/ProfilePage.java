@@ -42,6 +42,9 @@ public class ProfilePage extends AppCompatActivity {
     // Utils
     private Utils utils = null;
 
+    // User Email
+    private String profileUserEmail = null;
+
     // Intent
     private Intent profileIntentSignOut =  null;
 
@@ -63,6 +66,7 @@ public class ProfilePage extends AppCompatActivity {
 
     // Bitmap
     private Bitmap profileBitmapProfilePic = null;
+    private Bitmap profileBitmapCameraBuffer = null;
 
     // 1M
     private static final long ONE_MEGABYTE = 1024 * 1024;
@@ -118,6 +122,13 @@ public class ProfilePage extends AppCompatActivity {
         // Initialize Intent
         profileIntentSignOut = new Intent(this, MainActivity.class);
 
+        // Initialize UserEmail
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            Log.w(LOG_TAG, "No current user available on create.");
+        }
+        profileUserEmail = currentUser.getEmail();
+
         // Visibility setting for loading
         setVisibilityForDone(false);
 
@@ -131,17 +142,17 @@ public class ProfilePage extends AppCompatActivity {
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
 
-        if(savedInstanceState != null) {
-            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
-                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
-                        .findFragmentByTag(BitmapDataFragment.TAG);
-                profileBitmapProfilePic = bitmapFragment.getData();
-                profileImageViewProfilePic.setImageBitmap(
-                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic,
-                                false)));
-                getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
-            }
-        }
+//        if(savedInstanceState != null) {
+//            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
+//                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
+//                        .findFragmentByTag(BitmapDataFragment.TAG);
+//                profileBitmapProfilePic = bitmapFragment.getData();
+//                profileImageViewProfilePic.setImageBitmap(
+//                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic,
+//                                false)));
+//                getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
+//            }
+//        }
     }
 
     @Override
@@ -175,13 +186,7 @@ public class ProfilePage extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser == null) {
-            Log.w(LOG_TAG, "No current user available.");
-        }
-
         // User Email
-        String profileUserEmail = currentUser.getEmail();
         if (profileUserEmail == null) {
             Log.w(LOG_TAG, "Failed to get email from current user.");
         }
@@ -205,7 +210,7 @@ public class ProfilePage extends AppCompatActivity {
         });
 
         String key = getString(R.string.cloud_storage_profile_pic) +
-                utils.processEmailString(profileUserEmail) + getString(R.string.pic_format_jpg);
+                utils.processEmailString(profileUserEmail) + getString(R.string.pic_format_png);
         StorageReference profileStorageRef = mStorage.getReference();
         StorageReference profilePicRef = profileStorageRef.child(key);
         profilePicRef.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
@@ -226,23 +231,74 @@ public class ProfilePage extends AppCompatActivity {
         });
     }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        if (profileBitmapProfilePic != null) {
-            getSupportFragmentManager().beginTransaction()
-                    .add(BitmapDataFragment.newInstance(profileBitmapProfilePic),
-                            BitmapDataFragment.TAG)
-                    .commit();
-            outState.putBoolean(BitmapDataFragment.EXISTED, true);
-        } else {
-            outState.putBoolean(BitmapDataFragment.EXISTED, false);
-        }
-        super.onSaveInstanceState(outState);
-    }
+//    @Override
+//    protected void onSaveInstanceState(Bundle outState) {
+//        if (profileBitmapProfilePic != null) {
+//            getSupportFragmentManager().beginTransaction()
+//                    .add(BitmapDataFragment.newInstance(profileBitmapProfilePic),
+//                            BitmapDataFragment.TAG)
+//                    .commit();
+//            outState.putBoolean(BitmapDataFragment.EXISTED, true);
+//        } else {
+//            outState.putBoolean(BitmapDataFragment.EXISTED, false);
+//        }
+//        super.onSaveInstanceState(outState);
+//    }
 
     public void profileImage(View view) {
         Toast.makeText(this, "Upload profile pic", Toast.LENGTH_SHORT).show();
     }
+
+
+    private void switchProfileUI(boolean mainPageVisible) {
+        if (mainPageVisible) {
+            findViewById(R.id.profileDisplayMainPage).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadPage).setVisibility(View.GONE);
+        } else {
+            // update imageView profileContentUploadPage
+            ImageView imgView = findViewById(R.id.profileContentUploadView);
+//            imgView.setImageBitmap(utils.cropProfileBitmap(
+//                    profileBitmapCameraBuffer, false));
+            imgView.setImageBitmap(profileBitmapCameraBuffer);
+            findViewById(R.id.profileDisplayMainPage).setVisibility(View.GONE);
+            findViewById(R.id.profileContentUploadPage).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadLoading).setVisibility(View.GONE);
+        }
+    }
+
+    private void profileContentUploadToStorage() {
+        StorageReference regStorageRef = mStorage.getReference();
+        String key = getString(R.string.cloud_storage_content_img) + "/" +
+                utils.processEmailString(profileUserEmail) + "/"  + getString(R.string.pic_format_png);
+        StorageReference regProfilePicRef = regStorageRef.child(key);
+    }
+
+    public void profileContentUploadDiscard(View view) {
+        // update UI element
+        switchProfileUI(true);
+    }
+
+    public void profileContentUploadConfirmed(View view) {
+        // set loading icon to be visible
+        findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.GONE);
+        findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.GONE);
+        findViewById(R.id.profileContentUploadLoading).setVisibility(View.VISIBLE);
+
+        // upload data to storage
+
+
+        // update to recycle adapter view
+        mBitmapList.addFirst(utils.cropProfileBitmap(profileBitmapCameraBuffer, true));
+        mRecyclerView.getAdapter().notifyItemInserted(0);
+        mRecyclerView.smoothScrollToPosition(0);
+
+        // update UI element after uploading finished
+        switchProfileUI(true);
+    }
+
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -250,16 +306,14 @@ public class ProfilePage extends AppCompatActivity {
         if (requestCode == profileRequestCodeContentImgCam && data != null) {
             Bitmap bitmap = (Bitmap) data.getExtras().get("data");
             if (bitmap != null) {
-                // Add a new word to the wordList.
-                mBitmapList.addFirst(utils.cropProfileBitmap(bitmap, true));
-                // Notify the adapter, that the data has changed.
-                mRecyclerView.getAdapter().notifyItemInserted(0);
-                // Scroll to the bottom.
-                mRecyclerView.smoothScrollToPosition(0);
+                profileBitmapCameraBuffer = bitmap;
+                switchProfileUI(false);
             }
         } else {
             Log.w(LOG_TAG, "take content img on activity failed.");
         }
 
     }
+
+
 }

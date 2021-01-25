@@ -9,9 +9,11 @@
     android:padding="@dimen/activity_padding"
     tools:context=".ProfilePage">
         <LinearLayout
+            android:id="@+id/profileDisplayMainPage"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical" >
+            android:orientation="vertical"
+            android:visibility="visible">
 
             <ProgressBar
                 android:id="@+id/profileLoading"
@@ -64,12 +66,47 @@
                 </LinearLayout>
 
             </RelativeLayout>
-
-
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerview"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
             </androidx.recyclerview.widget.RecyclerView>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:id="@+id/profileContentUploadPage"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/profileContentUploadView"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:src="@mipmap/ic_launcher" />
+
+            <ProgressBar
+                android:id="@+id/profileContentUploadLoading"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/profileContentUploadButtonConfirmed"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="10dp"
+                android:text="Upload"
+                android:onClick="profileContentUploadConfirmed"
+                android:visibility="visible"/>
+            <Button
+                android:id="@+id/profileContentUploadButtonDiscard"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="10dp"
+                android:text="Discard"
+                android:onClick="profileContentUploadDiscard"
+                android:visibility="visible"/>
+
         </LinearLayout>
 </RelativeLayout>

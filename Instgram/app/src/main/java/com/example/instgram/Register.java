@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.FragmentManager;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -72,6 +73,9 @@ public class Register extends AppCompatActivity {
     // Bitmap
     private Bitmap regBitmapProfilePic = null;
 
+    // BitmapDataFragment
+    private BitmapDataFragment regBitmapProfileFrag = null;
+
     // Utils
     private Utils utils = null;
 
@@ -108,30 +112,63 @@ public class Register extends AppCompatActivity {
         regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
                 utils.cropProfileBitmap(regBitmapProfilePic, false)));
 
-        if(savedInstanceState != null) {
-            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
-                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
-                        .findFragmentByTag(BitmapDataFragment.TAG);
-                regBitmapProfilePic = bitmapFragment.getData();
-                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-                        utils.cropProfileBitmap(regBitmapProfilePic, false)));
-                getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
-            }
+        // Retain fragment instance
+        regRetainingFragment();
+        regSetRetainFragBitmap();
+
+
+//        if(savedInstanceState != null) {
+//            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
+//                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
+//                        .findFragmentByTag(BitmapDataFragment.TAG);
+//                regBitmapProfilePic = bitmapFragment.getData();
+//                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+//                        utils.cropProfileBitmap(regBitmapProfilePic, false)));
+//                getSupportFragmentManager().beginTransaction().remove(bitmapFragment)
+//                        .commit();
+//            }
+//        }
+    }
+
+//    @Override
+//    protected void onSaveInstanceState(Bundle outState) {
+//        super.onSaveInstanceState(outState);
+//        if (regBitmapProfilePic != null) {
+////            getSupportFragmentManager().beginTransaction()
+////                    .add(BitmapDataFragment.newInstance(regBitmapProfilePic),
+////                            BitmapDataFragment.TAG)
+////                    .commitAllowingStateLoss();
+//            outState.putBoolean(BitmapDataFragment.EXISTED, true);
+//        } else {
+//            outState.putBoolean(BitmapDataFragment.EXISTED, false);
+//        }
+//    }
+
+    private void regRetainingFragment() {
+        // find the retained fragment on activity restarts
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        this.regBitmapProfileFrag = (BitmapDataFragment) fragmentManager
+                .findFragmentByTag(BitmapDataFragment.TAG);
+        // create the fragment and bitmap the first time
+        if (this.regBitmapProfileFrag == null) {
+            this.regBitmapProfileFrag = new BitmapDataFragment();
+            fragmentManager.beginTransaction()
+                    // Add a fragment to the activity state.
+                    .add(this.regBitmapProfileFrag, BitmapDataFragment.TAG)
+                    .commit();
         }
     }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        if (regBitmapProfilePic != null) {
-            getSupportFragmentManager().beginTransaction()
-                    .add(BitmapDataFragment.newInstance(regBitmapProfilePic),
-                            BitmapDataFragment.TAG)
-                    .commit();
-            outState.putBoolean(BitmapDataFragment.EXISTED, true);
-        } else {
-            outState.putBoolean(BitmapDataFragment.EXISTED, false);
+    private void regSetRetainFragBitmap() {
+        if (this.regBitmapProfileFrag == null) {
+            return;
         }
-        super.onSaveInstanceState(outState);
+        Bitmap bitmap = this.regBitmapProfileFrag.getData();
+        if (bitmap == null) {
+            return;
+        }
+        regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                utils.cropProfileBitmap(bitmap, false)));
     }
 
     private void setVisibilityForLoading(Boolean loadingVisible) {
@@ -157,7 +194,7 @@ public class Register extends AppCompatActivity {
         } else {
             String email = regEditTextEmail.getText().toString();
             String key = getString(R.string.cloud_storage_profile_pic) +
-                    utils.processEmailString(email) + getString(R.string.pic_format_jpg);
+                    utils.processEmailString(email) + getString(R.string.pic_format_png);
             StorageReference regStorageRef = mStorage.getReference();
             StorageReference regProfilePicRef = regStorageRef.child(key);
             UploadTask uploadTask = regProfilePicRef.putBytes(
@@ -270,6 +307,7 @@ public class Register extends AppCompatActivity {
             Bitmap bitmap = (Bitmap) data.getExtras().get("data");
             if (bitmap != null) {
                 regBitmapProfilePic = bitmap;
+                this.regBitmapProfileFrag.setData(regBitmapProfilePic);
                 regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
                         utils.cropProfileBitmap(regBitmapProfilePic, false)));
             }

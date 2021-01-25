@@ -3,8 +3,9 @@
     <string name="extra_email">extraEmail</string>
     <string name="firestore_category_users">users/</string>
     <string name="cloud_storage_profile_pic">profilePics/</string>
+    <string name="cloud_storage_content_img">contentImages/</string>
     <string name="firestore_category_users_doc_username">usersDocUserName</string>
     <string name="firestore_category_users_doc_shortbio">usersDocShortBio</string>
-    <string name="pic_format_jpg">.jpg</string>
+    <string name="pic_format_png">.png</string>
     <string name="extraContentImageBitmapByte">bitmap</string>
 </resources>

@@ -60,6 +60,12 @@ public class Utils {
         return blob.toByteArray();
     }
 
+    // Reference: https://stackoverflow.com/questions/8077530/android-get-current-timestamp
+    public String getCurrentTimestampString() {
+        long tsLong = System.currentTimeMillis()/1000;
+        return Long.toString(tsLong);
+    }
+
     public String fireAuthExceptionCode(Exception exception) {
         String error;
         if (exception instanceof FirebaseAuthException) {
