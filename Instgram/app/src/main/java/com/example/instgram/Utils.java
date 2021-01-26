@@ -62,8 +62,7 @@ public class Utils {
 
     // Reference: https://stackoverflow.com/questions/8077530/android-get-current-timestamp
     public String getCurrentTimestampString() {
-        long tsLong = System.currentTimeMillis()/1000;
-        return Long.toString(tsLong);
+        return Long.toString(System.currentTimeMillis()/1000);
     }
 
     public String fireAuthExceptionCode(Exception exception) {

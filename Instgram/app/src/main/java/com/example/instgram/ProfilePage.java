@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -31,9 +32,12 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.ListResult;
 import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.util.LinkedList;
+import java.util.Map;
 
 public class ProfilePage extends AppCompatActivity {
     // LOG
@@ -65,17 +69,24 @@ public class ProfilePage extends AppCompatActivity {
     FirebaseStorage mStorage = null;
 
     // Bitmap
-    private Bitmap profileBitmapProfilePic = null;
     private Bitmap profileBitmapCameraBuffer = null;
+
+    // Fragment
+    private BitmapDataFragment profileBitmapProfileFrag = null;
+    private TextDataFragment profileTextProfileFrag = null;
+    private ContentImgListFragment profileContentImgFrag = null;
+
+    // AsyncCallHandler On Start
+    private AsyncCallHandler profileAsyncHdlOnLoadContentImg = null;
 
     // 1M
     private static final long ONE_MEGABYTE = 1024 * 1024;
 
     // Intent Request Code
-    private static int profileRequestCodeContentImgCam = 100;
+    private static final int profileRequestCodeContentImgCam = 100;
 
     // RecycleView for ContentImg
-    private final LinkedList<Bitmap> mBitmapList = new LinkedList<>();
+    private LinkedList<Bitmap> profileBitmapListContentImg = null;
     private RecyclerView mRecyclerView;
     private ContentImgAdapter mAdapter;
 
@@ -92,6 +103,29 @@ public class ProfilePage extends AppCompatActivity {
             profileImageViewProfilePic.setVisibility(View.INVISIBLE);
             profileProgressBarLoading.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void loadContentImgFromStorage(StorageReference ref) {
+        ref.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
+            @Override
+            public void onSuccess(byte[] bytes) {
+                profileContentImgFrag.setData(bytes);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                profileBitmapListContentImg.addFirst(
+                        utils.cropProfileBitmap(bitmap, true));
+                mRecyclerView.getAdapter().notifyItemInserted(0);
+                mRecyclerView.smoothScrollToPosition(0);
+                profileAsyncHdlOnLoadContentImg.addSuccessfulTask();
+                if (profileAsyncHdlOnLoadContentImg.waitForAllComplete()) {
+                    setVisibilityForDone(true);
+                }
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+                Log.w(LOG_TAG, "get content image from cloud storage failed.", exception);
+            }
+        });
     }
 
     @Override
@@ -129,30 +163,78 @@ public class ProfilePage extends AppCompatActivity {
         }
         profileUserEmail = currentUser.getEmail();
 
-        // Visibility setting for loading
-        setVisibilityForDone(false);
+        // Initialize RecycleView Bitmap LinkedList
+        profileBitmapListContentImg = new LinkedList<>();
 
         // Create recycler view.
         mRecyclerView = findViewById(R.id.recyclerview);
         // Create an adapter and supply the data to be displayed.
-        mAdapter = new ContentImgAdapter(this, mBitmapList);
+        mAdapter = new ContentImgAdapter(this, profileBitmapListContentImg);
         // Connect the adapter with the recycler view.
         mRecyclerView.setAdapter(mAdapter);
         // Give the recycler view a default layout manager.
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
+        // Retain fragment instance
+        profileRetainingFragment();
+        profileSetRetainingFrag();
+    }
 
-//        if(savedInstanceState != null) {
-//            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
-//                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
-//                        .findFragmentByTag(BitmapDataFragment.TAG);
-//                profileBitmapProfilePic = bitmapFragment.getData();
-//                profileImageViewProfilePic.setImageBitmap(
-//                        utils.toRoundBitMap(utils.cropProfileBitmap(profileBitmapProfilePic,
-//                                false)));
-//                getSupportFragmentManager().beginTransaction().remove(bitmapFragment).commit();
-//            }
-//        }
+    private void profileRetainingFragment() {
+        // find the retained fragment on activity restarts
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        this.profileBitmapProfileFrag = (BitmapDataFragment) fragmentManager
+                .findFragmentByTag(BitmapDataFragment.TAG);
+        this.profileTextProfileFrag = (TextDataFragment) fragmentManager
+                .findFragmentByTag(TextDataFragment.TAG);
+        this.profileContentImgFrag = (ContentImgListFragment) fragmentManager
+                .findFragmentByTag(ContentImgListFragment.TAG);
+        // create the fragment
+        if (this.profileBitmapProfileFrag == null) {
+            this.profileBitmapProfileFrag = new BitmapDataFragment();
+            fragmentManager.beginTransaction()
+                    .add(this.profileBitmapProfileFrag, BitmapDataFragment.TAG)
+                    .commit();
+        }
+        if (this.profileTextProfileFrag == null) {
+            this.profileTextProfileFrag = new TextDataFragment();
+            fragmentManager.beginTransaction()
+                    .add(this.profileTextProfileFrag, TextDataFragment.TAG)
+                    .commit();
+        }
+        if (this.profileContentImgFrag == null) {
+            this.profileContentImgFrag = new ContentImgListFragment();
+            fragmentManager.beginTransaction()
+                    .add(this.profileContentImgFrag, ContentImgListFragment.TAG)
+                    .commit();
+        }
+    }
+
+    private void profileSetRetainingFrag() {
+        if (this.profileBitmapProfileFrag == null ||
+                this.profileTextProfileFrag == null || this.profileContentImgFrag == null) {
+            setVisibilityForDone(false);
+            return;
+        }
+        Bitmap bitmap = this.profileBitmapProfileFrag.getData();
+        Map<String, String> text = this.profileTextProfileFrag.getData();
+        LinkedList<byte[]> byteArrList = this.profileContentImgFrag.getData();
+        if (bitmap == null || text == null || byteArrList == null) {
+            setVisibilityForDone(false);
+            return;
+        }
+        profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
+                utils.cropProfileBitmap(bitmap, false)));
+        profileTextViewDisplayName.setText(
+                text.get(getString(R.string.firestore_category_users_doc_username)));
+        profileTextViewShortBio.setText(
+                text.get(getString(R.string.firestore_category_users_doc_shortbio)));
+        for (int i = 0; i < byteArrList.size(); ++i) {
+            byte[] bytes = byteArrList.get(i);
+            Bitmap bitmapContentImg = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            profileBitmapListContentImg.addLast(
+                    utils.cropProfileBitmap(bitmapContentImg, true));
+        }
     }
 
     @Override
@@ -186,6 +268,11 @@ public class ProfilePage extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        if (this.profileBitmapProfileFrag.isDataExisted() ||
+                this.profileTextProfileFrag.isDataExisted() ||
+                this.profileContentImgFrag.isDataExisted()) {
+            return;
+        }
         // User Email
         if (profileUserEmail == null) {
             Log.w(LOG_TAG, "Failed to get email from current user.");
@@ -197,12 +284,18 @@ public class ProfilePage extends AppCompatActivity {
             @Override
             public void onEvent(DocumentSnapshot docSnapShot, FirebaseFirestoreException error) {
                 if (docSnapShot.exists()) {
-                    profileTextViewDisplayName.setText(docSnapShot.getString(
+                    String displayName = docSnapShot.getString(
                             getString(R.string.firestore_category_users_doc_username)
-                    ));
-                    profileTextViewShortBio.setText(docSnapShot.getString(
+                    );
+                    String shortBio = docSnapShot.getString(
                             getString(R.string.firestore_category_users_doc_shortbio)
-                    ));
+                    );
+                    profileTextProfileFrag.setData(
+                            getString(R.string.firestore_category_users_doc_username), displayName);
+                    profileTextProfileFrag.setData(
+                            getString(R.string.firestore_category_users_doc_shortbio), shortBio);
+                    profileTextViewDisplayName.setText(displayName);
+                    profileTextViewShortBio.setText(shortBio);
                 } else if (error != null) {
                     Log.w(LOG_TAG, "get profile user data from firestore failed.", error);
                 }
@@ -210,17 +303,17 @@ public class ProfilePage extends AppCompatActivity {
         });
 
         String key = getString(R.string.cloud_storage_profile_pic) +
-                utils.processEmailString(profileUserEmail) + getString(R.string.pic_format_png);
+                utils.processEmailString(profileUserEmail);
         StorageReference profileStorageRef = mStorage.getReference();
         StorageReference profilePicRef = profileStorageRef.child(key);
         profilePicRef.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
             @Override
             public void onSuccess(byte[] bytes) {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                profileBitmapProfileFrag.setData(bitmap);
+
                 profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
                         utils.cropProfileBitmap(bitmap, false)));
-
-                // Set Visibility
                 setVisibilityForDone(true);
             }
         }).addOnFailureListener(new OnFailureListener() {
@@ -229,21 +322,31 @@ public class ProfilePage extends AppCompatActivity {
                 Log.w(LOG_TAG, "get profile picture from cloud storage failed.", exception);
             }
         });
+
+        // query section for content image
+        String contentImgKey = getString(R.string.cloud_storage_content_img) +
+                utils.processEmailString(profileUserEmail) + "/";
+        StorageReference listRef = mStorage.getReference().child(contentImgKey);
+        listRef.listAll()
+                .addOnSuccessListener(new OnSuccessListener<ListResult>() {
+                    @Override
+                    public void onSuccess(ListResult listResult) {
+                        profileAsyncHdlOnLoadContentImg =
+                                new AsyncCallHandler(listResult.getItems().size());
+                        for (StorageReference item : listResult.getItems()) {
+                            loadContentImgFromStorage(item);
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(LOG_TAG, "get listRef contentImage error", e);
+                    }
+                });
     }
 
-//    @Override
-//    protected void onSaveInstanceState(Bundle outState) {
-//        if (profileBitmapProfilePic != null) {
-//            getSupportFragmentManager().beginTransaction()
-//                    .add(BitmapDataFragment.newInstance(profileBitmapProfilePic),
-//                            BitmapDataFragment.TAG)
-//                    .commit();
-//            outState.putBoolean(BitmapDataFragment.EXISTED, true);
-//        } else {
-//            outState.putBoolean(BitmapDataFragment.EXISTED, false);
-//        }
-//        super.onSaveInstanceState(outState);
-//    }
+
 
     public void profileImage(View view) {
         Toast.makeText(this, "Upload profile pic", Toast.LENGTH_SHORT).show();
@@ -270,9 +373,37 @@ public class ProfilePage extends AppCompatActivity {
 
     private void profileContentUploadToStorage() {
         StorageReference regStorageRef = mStorage.getReference();
-        String key = getString(R.string.cloud_storage_content_img) + "/" +
-                utils.processEmailString(profileUserEmail) + "/"  + getString(R.string.pic_format_png);
-        StorageReference regProfilePicRef = regStorageRef.child(key);
+        String key = getString(R.string.cloud_storage_content_img) +
+                utils.processEmailString(profileUserEmail) +"/" +
+                utils.getCurrentTimestampString();
+        StorageReference regProfileContentImgRef = regStorageRef.child(key);
+        UploadTask uploadTask = regProfileContentImgRef.putBytes(
+                utils.compressBitmapToByteArray(profileBitmapCameraBuffer));
+        uploadTask.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+                Log.w(LOG_TAG, "Failed to upload content image to cloud storage",
+                        exception);
+                findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.VISIBLE);
+                findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.VISIBLE);
+                findViewById(R.id.profileContentUploadLoading).setVisibility(View.GONE);
+                Toast.makeText(ProfilePage.this,
+                        "Storage: " + utils.fireStoreExceptionCode(exception),
+                        Toast.LENGTH_SHORT).show();
+            }
+        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                Log.d(LOG_TAG, "Cloud storage upload content image succeed.");
+                profileContentImgFrag.setData(
+                        utils.compressBitmapToByteArray(profileBitmapCameraBuffer));
+                profileBitmapListContentImg.addFirst(
+                        utils.cropProfileBitmap(profileBitmapCameraBuffer, true));
+                mRecyclerView.getAdapter().notifyItemInserted(0);
+                mRecyclerView.smoothScrollToPosition(0);
+                switchProfileUI(true);
+            }
+        });
     }
 
     public void profileContentUploadDiscard(View view) {
@@ -287,15 +418,7 @@ public class ProfilePage extends AppCompatActivity {
         findViewById(R.id.profileContentUploadLoading).setVisibility(View.VISIBLE);
 
         // upload data to storage
-
-
-        // update to recycle adapter view
-        mBitmapList.addFirst(utils.cropProfileBitmap(profileBitmapCameraBuffer, true));
-        mRecyclerView.getAdapter().notifyItemInserted(0);
-        mRecyclerView.smoothScrollToPosition(0);
-
-        // update UI element after uploading finished
-        switchProfileUI(true);
+        profileContentUploadToStorage();
     }
 
 

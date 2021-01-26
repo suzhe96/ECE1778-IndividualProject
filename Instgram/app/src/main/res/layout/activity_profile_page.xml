@@ -22,7 +22,7 @@
                 android:layout_gravity="center_horizontal"
                 android:indeterminateBehavior="repeat"
                 android:indeterminateDrawable="@drawable/loading_animation"
-                android:visibility="invisible"/>
+                android:visibility="gone"/>
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

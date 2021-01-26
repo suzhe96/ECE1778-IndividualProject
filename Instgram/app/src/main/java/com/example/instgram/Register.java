@@ -36,11 +36,6 @@ import java.util.Map;
 public class Register extends AppCompatActivity {
     // LOG
     private static final String LOG_TAG = Register.class.getSimpleName();
-    private static final String TOAST_TAG = "Sign up failed: ";
-
-    // EXTRA
-    public static final String regExtraShortBio =
-            "com.example.instgram.extra.REG_PROFILE_SHORT_BIO";
 
     // Firebase Auth
     private FirebaseAuth mAuth = null;
@@ -52,7 +47,7 @@ public class Register extends AppCompatActivity {
     private Intent regProfileIntent = null;
 
     // Intent Request Code
-    private static int regRequestCodeProfileCam = 100;
+    private static final int regRequestCodeProfileCam = 100;
 
     // EditView
     private EditText regEditTextShortBio = null;
@@ -73,7 +68,7 @@ public class Register extends AppCompatActivity {
     // Bitmap
     private Bitmap regBitmapProfilePic = null;
 
-    // BitmapDataFragment
+    // Fragment
     private BitmapDataFragment regBitmapProfileFrag = null;
 
     // Utils
@@ -115,34 +110,7 @@ public class Register extends AppCompatActivity {
         // Retain fragment instance
         regRetainingFragment();
         regSetRetainFragBitmap();
-
-
-//        if(savedInstanceState != null) {
-//            if (savedInstanceState.getBoolean(BitmapDataFragment.EXISTED)) {
-//                BitmapDataFragment bitmapFragment = (BitmapDataFragment)getSupportFragmentManager()
-//                        .findFragmentByTag(BitmapDataFragment.TAG);
-//                regBitmapProfilePic = bitmapFragment.getData();
-//                regImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
-//                        utils.cropProfileBitmap(regBitmapProfilePic, false)));
-//                getSupportFragmentManager().beginTransaction().remove(bitmapFragment)
-//                        .commit();
-//            }
-//        }
     }
-
-//    @Override
-//    protected void onSaveInstanceState(Bundle outState) {
-//        super.onSaveInstanceState(outState);
-//        if (regBitmapProfilePic != null) {
-////            getSupportFragmentManager().beginTransaction()
-////                    .add(BitmapDataFragment.newInstance(regBitmapProfilePic),
-////                            BitmapDataFragment.TAG)
-////                    .commitAllowingStateLoss();
-//            outState.putBoolean(BitmapDataFragment.EXISTED, true);
-//        } else {
-//            outState.putBoolean(BitmapDataFragment.EXISTED, false);
-//        }
-//    }
 
     private void regRetainingFragment() {
         // find the retained fragment on activity restarts
@@ -194,7 +162,7 @@ public class Register extends AppCompatActivity {
         } else {
             String email = regEditTextEmail.getText().toString();
             String key = getString(R.string.cloud_storage_profile_pic) +
-                    utils.processEmailString(email) + getString(R.string.pic_format_png);
+                    utils.processEmailString(email);
             StorageReference regStorageRef = mStorage.getReference();
             StorageReference regProfilePicRef = regStorageRef.child(key);
             UploadTask uploadTask = regProfilePicRef.putBytes(
