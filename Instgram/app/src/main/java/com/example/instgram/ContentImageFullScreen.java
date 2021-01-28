@@ -21,6 +21,7 @@ public class ContentImageFullScreen extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setTitle("Zoom In View");
         setContentView(R.layout.activity_content_image_full_screen);
         contentImgFullImageView = findViewById(R.id.contentImageFullScreenView);
         utils = new Utils();

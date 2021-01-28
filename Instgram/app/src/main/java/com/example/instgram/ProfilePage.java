@@ -36,6 +36,9 @@ import com.google.firebase.storage.ListResult;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
@@ -90,34 +93,50 @@ public class ProfilePage extends AppCompatActivity {
     private RecyclerView mRecyclerView;
     private ContentImgAdapter mAdapter;
 
+    // ContentImg Data Structure for Chronological Order
+    private HashMap<Long, byte[]> profileHashMapContentImg = null;
+    private ArrayList<Long> profileArrayListContentImgTimestamp = null;
+
 
     private void setVisibilityForDone(Boolean isDone) {
         if (isDone) {
             profileTextViewShortBio.setVisibility(View.VISIBLE);
             profileTextViewDisplayName.setVisibility(View.VISIBLE);
             profileImageViewProfilePic.setVisibility(View.VISIBLE);
+            mRecyclerView.setVisibility(View.VISIBLE);
             profileProgressBarLoading.setVisibility(View.GONE);
         } else {
             profileTextViewShortBio.setVisibility(View.INVISIBLE);
             profileTextViewDisplayName.setVisibility(View.INVISIBLE);
             profileImageViewProfilePic.setVisibility(View.INVISIBLE);
+            mRecyclerView.setVisibility(View.INVISIBLE);
             profileProgressBarLoading.setVisibility(View.VISIBLE);
         }
     }
 
-    private void loadContentImgFromStorage(StorageReference ref) {
+    private void insertContentImgToList() {
+        Collections.sort(profileArrayListContentImgTimestamp);
+        for (Long timestamp : profileArrayListContentImgTimestamp) {
+            byte [] bytes = profileHashMapContentImg.get(timestamp);
+            profileContentImgFrag.setData(bytes);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            profileBitmapListContentImg.addFirst(
+                        utils.cropProfileBitmap(bitmap, true));
+            mRecyclerView.getAdapter().notifyItemInserted(0);
+        }
+        mRecyclerView.smoothScrollToPosition(0);
+        setVisibilityForDone(true);
+    }
+
+    private void loadContentImgFromStorage(StorageReference ref, Long timeStamp) {
         ref.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
             @Override
             public void onSuccess(byte[] bytes) {
-                profileContentImgFrag.setData(bytes);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                profileBitmapListContentImg.addFirst(
-                        utils.cropProfileBitmap(bitmap, true));
-                mRecyclerView.getAdapter().notifyItemInserted(0);
-                mRecyclerView.smoothScrollToPosition(0);
+                profileArrayListContentImgTimestamp.add(timeStamp);
+                profileHashMapContentImg.put(timeStamp, bytes);
                 profileAsyncHdlOnLoadContentImg.addSuccessfulTask();
                 if (profileAsyncHdlOnLoadContentImg.waitForAllComplete()) {
-                    setVisibilityForDone(true);
+                    insertContentImgToList();
                 }
             }
         }).addOnFailureListener(new OnFailureListener() {
@@ -165,6 +184,10 @@ public class ProfilePage extends AppCompatActivity {
 
         // Initialize RecycleView Bitmap LinkedList
         profileBitmapListContentImg = new LinkedList<>();
+
+        // Initialize ContentImg Data Structure
+        profileHashMapContentImg = new HashMap<Long, byte[]>();
+        profileArrayListContentImgTimestamp = new ArrayList<Long>();
 
         // Create recycler view.
         mRecyclerView = findViewById(R.id.recyclerview);
@@ -314,7 +337,6 @@ public class ProfilePage extends AppCompatActivity {
 
                 profileImageViewProfilePic.setImageBitmap(utils.toRoundBitMap(
                         utils.cropProfileBitmap(bitmap, false)));
-                setVisibilityForDone(true);
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override
@@ -334,7 +356,9 @@ public class ProfilePage extends AppCompatActivity {
                         profileAsyncHdlOnLoadContentImg =
                                 new AsyncCallHandler(listResult.getItems().size());
                         for (StorageReference item : listResult.getItems()) {
-                            loadContentImgFromStorage(item);
+                            Log.w(LOG_TAG, item.getPath());
+                            loadContentImgFromStorage(item,
+                                    utils.getTimeStampFromStorageRef(item.getPath()));
                         }
                     }
                 })

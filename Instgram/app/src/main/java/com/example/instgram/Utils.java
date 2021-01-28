@@ -65,6 +65,11 @@ public class Utils {
         return Long.toString(System.currentTimeMillis()/1000);
     }
 
+    public Long getTimeStampFromStorageRef(String refStr) {
+        String [] str = refStr.split("/");
+        return Long.parseLong(str[str.length - 1]);
+    }
+
     public String fireAuthExceptionCode(Exception exception) {
         String error;
         if (exception instanceof FirebaseAuthException) {

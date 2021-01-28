@@ -156,6 +156,9 @@ public class Register extends AppCompatActivity {
     }
 
     private void syncDataToCloudStorage() {
+        if (regBitmapProfileFrag.getData() != null) {
+            regBitmapProfilePic = regBitmapProfileFrag.getData();
+        }
         if (regBitmapProfilePic == null) {
             Log.w(LOG_TAG, "empty profile bitmap while uploaded.");
             regRouteToProfile();
