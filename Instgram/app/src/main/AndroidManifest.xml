@@ -9,7 +9,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Instgram">
-        <activity android:name=".ContentImageFullScreen"></activity>
+        <activity android:name=".Comment"></activity>
         <activity
             android:name=".ProfilePage"
             android:theme="@style/Theme.Instgram" />

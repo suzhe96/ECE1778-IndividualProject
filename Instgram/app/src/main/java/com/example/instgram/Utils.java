@@ -70,6 +70,10 @@ public class Utils {
         return Long.parseLong(str[str.length - 1]);
     }
 
+    public Boolean toggleBoolean(Boolean val) {
+        return !val;
+    }
+
     public String fireAuthExceptionCode(Exception exception) {
         String error;
         if (exception instanceof FirebaseAuthException) {

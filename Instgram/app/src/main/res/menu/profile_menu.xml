@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.vi8e.giant.AddressListActivity">
+    <item
+        android:id="@+id/action_signout"
+        android:orderInCategory="100"
+        android:icon="@drawable/action_back_arrow"
+        android:title="Sign Out"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_takepics"
+        android:orderInCategory="100"
+        android:icon="@drawable/action_camera"
+        android:title="Upload Photo"
+        app:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/action_view_switch"
+        android:orderInCategory="100"
+        android:icon="@drawable/action_grid_view"
+        android:title="Global view"
+        app:showAsAction="ifRoom"/>
+</menu>

@@ -24,9 +24,11 @@
                 android:indeterminateDrawable="@drawable/loading_animation"
                 android:visibility="gone"/>
             <RelativeLayout
+                android:id="@+id/profileHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:visibility="visible">
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

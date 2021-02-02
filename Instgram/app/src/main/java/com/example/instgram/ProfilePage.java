@@ -2,6 +2,7 @@ package com.example.instgram;
 
 import android.app.Activity;
 import android.app.ActivityOptions;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -20,6 +21,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -90,12 +92,22 @@ public class ProfilePage extends AppCompatActivity {
 
     // RecycleView for ContentImg
     private LinkedList<Bitmap> profileBitmapListContentImg = null;
+    private LinkedList<Bitmap> profileBitmapListContentImgGlobal = null;
     private RecyclerView mRecyclerView;
     private ContentImgAdapter mAdapter;
+    private ContentImgAdapter mAdapterGlobal;
+
+    // Global/Grid view switch guard
+    private Boolean profileViewSwitchIsGrid = null;
 
     // ContentImg Data Structure for Chronological Order
     private HashMap<Long, byte[]> profileHashMapContentImg = null;
     private ArrayList<Long> profileArrayListContentImgTimestamp = null;
+
+    // ContentImgGlobal position index mapping of /userEmail/timeStamp
+    private ArrayList<String> profileArrayListContentImgGlobalPrefix = null;
+    private Boolean profileGlobalViewInitialized = null;
+
 
 
     private void setVisibilityForDone(Boolean isDone) {
@@ -115,17 +127,87 @@ public class ProfilePage extends AppCompatActivity {
     }
 
     private void insertContentImgToList() {
-        Collections.sort(profileArrayListContentImgTimestamp);
+        Collections.sort(profileArrayListContentImgTimestamp, Collections.reverseOrder());
         for (Long timestamp : profileArrayListContentImgTimestamp) {
             byte [] bytes = profileHashMapContentImg.get(timestamp);
             profileContentImgFrag.setData(bytes);
+            profileContentImgFrag.setTimestampData(timestamp);
             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-            profileBitmapListContentImg.addFirst(
+            profileBitmapListContentImg.addLast(
                         utils.cropProfileBitmap(bitmap, true));
             mRecyclerView.getAdapter().notifyItemInserted(0);
         }
         mRecyclerView.smoothScrollToPosition(0);
         setVisibilityForDone(true);
+    }
+
+    private void loadContentImgGlobalToList(StorageReference refGlobal) {
+        refGlobal.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
+            @Override
+            public void onSuccess(byte[] bytes) {
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                profileBitmapListContentImgGlobal.addLast(
+                        utils.cropProfileBitmap(bitmap, true));
+                int globalListSize = profileArrayListContentImgGlobalPrefix.size();
+                mRecyclerView.getAdapter().notifyItemInserted(globalListSize);
+                profileArrayListContentImgGlobalPrefix.add(refGlobal.getPath());
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception exception) {
+                Log.w(LOG_TAG, "get content image global from cloud storage failed.",
+                        exception);
+            }
+        });
+    }
+
+    private void switchToGlobalView() {
+        // switch to global view
+        mRecyclerView.setAdapter(mAdapterGlobal);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(ProfilePage.this));
+        mAdapterGlobal.notifyDataSetChanged();
+
+        // to see if need fetch resource from the storage
+        if (profileGlobalViewInitialized) {
+            return;
+        }
+
+        // get all contentImg ref if the first time
+        String contentImgKey = getString(R.string.cloud_storage_content_img);
+        StorageReference listGlobalRef = mStorage.getReference().child(contentImgKey);
+        listGlobalRef.listAll()
+                .addOnSuccessListener(new OnSuccessListener<ListResult>() {
+                    @Override
+                    public void onSuccess(ListResult listResult) {
+                        profileGlobalViewInitialized = true;
+                        for (StorageReference prefix : listResult.getPrefixes()) {
+                            prefix.listAll()
+                                    .addOnSuccessListener(new OnSuccessListener<ListResult>() {
+                                        @Override
+                                        public void onSuccess(ListResult listResult) {
+                                            for (StorageReference item : listResult.getItems()) {
+                                                Log.w(LOG_TAG, item.getPath());
+                                                loadContentImgGlobalToList(item);
+                                            }
+                                        }
+                                    })
+                                    .addOnFailureListener(new OnFailureListener() {
+                                        @Override
+                                        public void onFailure(@NonNull Exception e) {
+                                            Log.w(LOG_TAG,
+                                                    "get listRef contentImageGlobal error",
+                                                    e);
+                                        }
+                                    });
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(LOG_TAG, "get listRef contentImageGlobal prefix error", e);
+                    }
+                });
     }
 
     private void loadContentImgFromStorage(StorageReference ref, Long timeStamp) {
@@ -145,6 +227,34 @@ public class ProfilePage extends AppCompatActivity {
                 Log.w(LOG_TAG, "get content image from cloud storage failed.", exception);
             }
         });
+    }
+
+    private void contentImgOnClickEvent(View view, int position) {
+            // current context
+            Context context = view.getContext();
+            // click for full screen
+            Intent contentImageFullScreenIntent =
+                new Intent(context, Comment.class);
+            if (profileViewSwitchIsGrid) {
+                contentImageFullScreenIntent.putExtra("extraContentImageBitmapByte",
+                        utils.compressBitmapToByteArray(profileBitmapListContentImg.get(position)));
+                String ref = "/" + getString(R.string.cloud_storage_content_img) +
+                        utils.processEmailString(profileUserEmail) + "/" +
+                        Long.toString(profileArrayListContentImgTimestamp.get(position));
+                contentImageFullScreenIntent.putExtra("extraStorageRef", ref);
+            } else {
+                contentImageFullScreenIntent.putExtra("extraContentImageBitmapByte",
+                        utils.compressBitmapToByteArray(
+                                profileBitmapListContentImgGlobal.get(position)));
+                contentImageFullScreenIntent.putExtra("extraStorageRef",
+                        profileArrayListContentImgGlobalPrefix.get(position));
+            }
+            context.startActivity(contentImageFullScreenIntent);
+//            context.startActivity(contentImageFullScreenIntent,
+//                    ActivityOptions.makeSceneTransitionAnimation(
+//                            (Activity) view.getContext(),
+//                            view, "sharedContentImageEnlarged").toBundle());
+            return;
     }
 
     @Override
@@ -184,19 +294,38 @@ public class ProfilePage extends AppCompatActivity {
 
         // Initialize RecycleView Bitmap LinkedList
         profileBitmapListContentImg = new LinkedList<>();
+        profileBitmapListContentImgGlobal = new LinkedList<>();
 
         // Initialize ContentImg Data Structure
         profileHashMapContentImg = new HashMap<Long, byte[]>();
         profileArrayListContentImgTimestamp = new ArrayList<Long>();
 
+        // Initialize ContentImgGlobal Data Structure
+        profileArrayListContentImgGlobalPrefix = new ArrayList<String>();
+        profileGlobalViewInitialized = false;
+
         // Create recycler view.
         mRecyclerView = findViewById(R.id.recyclerview);
         // Create an adapter and supply the data to be displayed.
         mAdapter = new ContentImgAdapter(this, profileBitmapListContentImg);
+        mAdapterGlobal = new ContentImgAdapter(this, profileBitmapListContentImgGlobal);
+        mAdapter.setOnItemClickListener(new ContentImgAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(View view, int position) {
+                contentImgOnClickEvent(view, position);
+            }
+        });
+        mAdapterGlobal.setOnItemClickListener(new ContentImgAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(View view, int position) {
+                contentImgOnClickEvent(view, position);
+            }
+        });
         // Connect the adapter with the recycler view.
         mRecyclerView.setAdapter(mAdapter);
         // Give the recycler view a default layout manager.
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
+        profileViewSwitchIsGrid = true;
 
         // Retain fragment instance
         profileRetainingFragment();
@@ -242,6 +371,7 @@ public class ProfilePage extends AppCompatActivity {
         Bitmap bitmap = this.profileBitmapProfileFrag.getData();
         Map<String, String> text = this.profileTextProfileFrag.getData();
         LinkedList<byte[]> byteArrList = this.profileContentImgFrag.getData();
+        ArrayList<Long> timestampArrList = this.profileContentImgFrag.getTimestampData();
         if (bitmap == null || text == null || byteArrList == null) {
             setVisibilityForDone(false);
             return;
@@ -258,12 +388,16 @@ public class ProfilePage extends AppCompatActivity {
             profileBitmapListContentImg.addLast(
                     utils.cropProfileBitmap(bitmapContentImg, true));
         }
+        Collections.sort(timestampArrList, Collections.reverseOrder());
+        for (int i = 0; i < timestampArrList.size(); ++i) {
+            profileArrayListContentImgTimestamp.add(timestampArrList.get(i));
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.address_list, menu);
+        getMenuInflater().inflate(R.menu.profile_menu, menu);
         return true;
     }
 
@@ -277,10 +411,21 @@ public class ProfilePage extends AppCompatActivity {
                 break;
             case R.id.action_takepics:
                 Log.d(LOG_TAG, "Take pics button being clicked");
-
                 Intent cameraIntent = new Intent();
                 cameraIntent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
                 startActivityForResult(cameraIntent, profileRequestCodeContentImgCam);
+                break;
+            case R.id.action_view_switch:
+                Log.d(LOG_TAG, "View switch button being clicked");
+                profileViewSwitchIsGrid = utils.toggleBoolean(profileViewSwitchIsGrid);
+                if (!profileViewSwitchIsGrid) {
+                    switchToGlobalView();
+                } else {
+                    mRecyclerView.setAdapter(mAdapter);
+                    mRecyclerView.setLayoutManager(
+                            new GridLayoutManager(ProfilePage.this, 3));
+                    mAdapter.notifyDataSetChanged();
+                }
                 break;
             default:
                 break;
@@ -397,9 +542,10 @@ public class ProfilePage extends AppCompatActivity {
 
     private void profileContentUploadToStorage() {
         StorageReference regStorageRef = mStorage.getReference();
+        String timestampString = utils.getCurrentTimestampString();
         String key = getString(R.string.cloud_storage_content_img) +
-                utils.processEmailString(profileUserEmail) +"/" +
-                utils.getCurrentTimestampString();
+                utils.processEmailString(profileUserEmail) +"/" + timestampString;
+
         StorageReference regProfileContentImgRef = regStorageRef.child(key);
         UploadTask uploadTask = regProfileContentImgRef.putBytes(
                 utils.compressBitmapToByteArray(profileBitmapCameraBuffer));
@@ -421,10 +567,21 @@ public class ProfilePage extends AppCompatActivity {
                 Log.d(LOG_TAG, "Cloud storage upload content image succeed.");
                 profileContentImgFrag.setData(
                         utils.compressBitmapToByteArray(profileBitmapCameraBuffer));
-                profileBitmapListContentImg.addFirst(
-                        utils.cropProfileBitmap(profileBitmapCameraBuffer, true));
-                mRecyclerView.getAdapter().notifyItemInserted(0);
-                mRecyclerView.smoothScrollToPosition(0);
+                profileContentImgFrag.setTimestampData(Long.parseLong(timestampString));
+                Bitmap bitmap = utils.cropProfileBitmap(profileBitmapCameraBuffer, true);
+                profileBitmapListContentImg.addFirst(bitmap);
+                profileArrayListContentImgTimestamp.add(0, Long.parseLong(timestampString));
+                profileBitmapListContentImgGlobal.addLast(bitmap);
+                profileArrayListContentImgGlobalPrefix.add("/" + key);
+
+                if (profileViewSwitchIsGrid) {
+                    mRecyclerView.getAdapter().notifyItemInserted(0);
+                    mRecyclerView.smoothScrollToPosition(0);
+                } else {
+                    int size = profileBitmapListContentImgGlobal.size();
+                    mRecyclerView.getAdapter().notifyItemInserted(size);
+                    mRecyclerView.smoothScrollToPosition(size);
+                }
                 switchProfileUI(true);
             }
         });

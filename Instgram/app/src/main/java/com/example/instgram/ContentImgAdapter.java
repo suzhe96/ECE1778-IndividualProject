@@ -24,9 +24,17 @@ public class ContentImgAdapter extends
 
     private final LinkedList<Bitmap> mBitmapList;
     private final LayoutInflater mInflater;
+    private OnItemClickListener mOnItemClickListener;
 
-    class ContentImgViewHolder extends RecyclerView.ViewHolder
-            implements View.OnClickListener {
+    public interface OnItemClickListener{
+        void onItemClick(View view, int position);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener mOnItemClickListener){
+        this.mOnItemClickListener = mOnItemClickListener;
+    }
+
+    class ContentImgViewHolder extends RecyclerView.ViewHolder {
         public final ImageView contentImgView;
         final ContentImgAdapter mAdapter;
 
@@ -42,24 +50,24 @@ public class ContentImgAdapter extends
             super(itemView);
             contentImgView = itemView.findViewById(R.id.contentImgView);
             this.mAdapter = adapter;
-            itemView.setOnClickListener(this);
+//            itemView.setOnClickListener(this);
         }
 
-        @Override
-        public void onClick(View view) {
-            // current context
-            Context context = view.getContext();
-            // click for full screen
-            Intent contentImageFullScreenIntent =
-                    new Intent(context, ContentImageFullScreen.class);
-            contentImageFullScreenIntent.putExtra("extraContentImageBitmapByte",
-                    utils.compressBitmapToByteArray(mBitmapList.get(getLayoutPosition())));
-            view.getContext().startActivity(contentImageFullScreenIntent,
-                    ActivityOptions.makeSceneTransitionAnimation(
-                            (Activity) view.getContext(),
-                            view, "sharedContentImageEnlarged").toBundle());
-            return;
-        }
+//        @Override
+//        public void onClick(View view) {
+//            // current context
+//            Context context = view.getContext();
+//            // click for full screen
+//            Intent contentImageFullScreenIntent =
+//                    new Intent(context, ContentImageFullScreen.class);
+//            contentImageFullScreenIntent.putExtra("extraContentImageBitmapByte",
+//                    utils.compressBitmapToByteArray(mBitmapList.get(getLayoutPosition())));
+//            view.getContext().startActivity(contentImageFullScreenIntent,
+//                    ActivityOptions.makeSceneTransitionAnimation(
+//                            (Activity) view.getContext(),
+//                            view, "sharedContentImageEnlarged").toBundle());
+//            return;
+//        }
     }
 
     public ContentImgAdapter(Context context, LinkedList<Bitmap> bitmapList) {
@@ -84,6 +92,15 @@ public class ContentImgAdapter extends
         Bitmap mCurrent = mBitmapList.get(position);
         // Add the data to the view holder.
         holder.contentImgView.setImageBitmap(mCurrent);
+
+        if (mOnItemClickListener != null) {
+            holder.contentImgView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mOnItemClickListener.onItemClick(v, position);
+                }
+            });
+        }
     }
 
     /**
