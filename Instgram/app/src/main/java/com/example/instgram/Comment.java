@@ -17,6 +17,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -39,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 
 public class Comment extends AppCompatActivity {
@@ -68,8 +70,12 @@ public class Comment extends AppCompatActivity {
     private HashMap<Long, CommentFireStoreFields> commentHashMapFields;
     private HashMap<Long, byte[]> commentHashMapBitmap;
     private ArrayList<Long> commentArrayListTimestamp;
-    // AsyncHandler for comment RecyclerView
-    private AsyncCallHandler commentAsyncHandler;
+    // AsyncHandler for loading comment RecyclerView
+    private AsyncCallHandler commentAsyncHandlerCommentLoad;
+    // AsyncHandler for deleting post
+    private AsyncCallHandler commentAsyncHandlerPostDelete;
+    // AsyncHandler for deleting single comment
+    private AsyncCallHandler commentAsyncHandlerCommentDelete;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -151,8 +157,9 @@ public class Comment extends AppCompatActivity {
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
+                            Log.d(LOG_TAG, "getting all comment successfully");
                             int size  = task.getResult().size();
-                            commentAsyncHandler = new AsyncCallHandler(size);
+                            commentAsyncHandlerCommentLoad = new AsyncCallHandler(size);
                             for (QueryDocumentSnapshot document : task.getResult()) {
                                 Log.d(LOG_TAG,
                                         document.getId() + " => " + document.getData());
@@ -164,7 +171,6 @@ public class Comment extends AppCompatActivity {
                         }
                     }
                 });
-
     }
 
     private void loadSingleCommentItem(CommentFireStoreFields field) {
@@ -179,8 +185,8 @@ public class Comment extends AppCompatActivity {
                 commentArrayListTimestamp.add(commentTimestamp);
                 commentHashMapFields.put(commentTimestamp, field);
                 commentHashMapBitmap.put(commentTimestamp, bytes);
-                commentAsyncHandler.addSuccessfulTask();
-                if (commentAsyncHandler.waitForAllComplete()) {
+                commentAsyncHandlerCommentLoad.addSuccessfulTask();
+                if (commentAsyncHandlerCommentLoad.waitForAllComplete()) {
                     insertCommentToList();
                 }
             }
@@ -226,11 +232,112 @@ public class Comment extends AppCompatActivity {
                 break;
             case R.id.action_delete_post:
                 Log.d(LOG_TAG, "comment page delete post button clicked");
-                startActivity(new Intent(Comment.this, ProfilePage.class));
+                deletePost();
             default:
                 break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void deletePost() {
+        if (!postIsDeletable()) {
+            Toast.makeText(this, "Unauthorized to delete", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // task: 1. delete all comment; 2. delete contentImage
+        commentAsyncHandlerPostDelete = new AsyncCallHandler(2);
+
+        // delete all comments
+        FirebaseFirestore.getInstance()
+                .collection(getString(R.string.firestore_category_comments))
+                .whereEqualTo("photoRef", commentRefString)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            Log.d(LOG_TAG, "getting all comment successfully when delete");
+                            int size  = task.getResult().size();
+                            commentAsyncHandlerCommentDelete = new AsyncCallHandler(size);
+
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Log.d(LOG_TAG,
+                                        "Del: " +
+                                                document.getId() + " => " + document.getData());
+                                deleteSingleComment(document.getId());
+                            }
+                            if (commentAsyncHandlerCommentDelete.waitForAllComplete()) {
+                                commentAsyncHandlerPostDelete.addSuccessfulTask();
+                            }
+                            if (commentAsyncHandlerPostDelete.waitForAllComplete()) {
+                                startActivity(
+                                        new Intent(Comment.this, ProfilePage.class));
+                            }
+                        } else {
+                            Log.d(LOG_TAG, "Error getting documents when delete: ",
+                                    task.getException());
+                        }
+                    }
+                });
+
+        // delete contentImage from storage
+        String [] localStr = commentRefString.split("/");
+        String storage = getString(R.string.cloud_storage_content_img) +
+                utils.processEmailString(commentCurrentUserEmail) + "/" +
+                localStr[localStr.length - 1];
+        StorageReference storageRef = FirebaseStorage.getInstance().getReference();
+        StorageReference picRef = storageRef.child(storage);
+        picRef.delete()
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(LOG_TAG, "contentImage successfully deleted!");
+                        commentAsyncHandlerPostDelete.addSuccessfulTask();
+                        if (commentAsyncHandlerPostDelete.waitForAllComplete()) {
+                            startActivity(
+                                    new Intent(Comment.this, ProfilePage.class));
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(LOG_TAG, "Error deleting contentImage from storage", e);
+                    }
+                });
+        // startActivity(new Intent(Comment.this, ProfilePage.class));
+    }
+
+    private void deleteSingleComment(String id) {
+        FirebaseFirestore.getInstance()
+                .collection(getString(R.string.firestore_category_comments))
+                .document(id)
+                .delete()
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(LOG_TAG, "DocumentSnapshot successfully deleted!");
+                        commentAsyncHandlerCommentDelete.addSuccessfulTask();
+                        if (commentAsyncHandlerCommentDelete.waitForAllComplete()) {
+                            commentAsyncHandlerPostDelete.addSuccessfulTask();
+                        }
+                        if (commentAsyncHandlerPostDelete.waitForAllComplete()) {
+                            startActivity(
+                                    new Intent(Comment.this, ProfilePage.class));
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(LOG_TAG, "Error deleting document", e);
+                    }
+                });
+    }
+
+    private boolean postIsDeletable() {
+        String contentImgOwner = commentRefString.split("/")[2];
+        return contentImgOwner.equals(utils.processEmailString(commentCurrentUserEmail));
     }
 
     public void uploadCommentText(View view) {

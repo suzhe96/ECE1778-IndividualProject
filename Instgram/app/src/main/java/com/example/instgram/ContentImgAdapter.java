@@ -50,24 +50,7 @@ public class ContentImgAdapter extends
             super(itemView);
             contentImgView = itemView.findViewById(R.id.contentImgView);
             this.mAdapter = adapter;
-//            itemView.setOnClickListener(this);
         }
-
-//        @Override
-//        public void onClick(View view) {
-//            // current context
-//            Context context = view.getContext();
-//            // click for full screen
-//            Intent contentImageFullScreenIntent =
-//                    new Intent(context, ContentImageFullScreen.class);
-//            contentImageFullScreenIntent.putExtra("extraContentImageBitmapByte",
-//                    utils.compressBitmapToByteArray(mBitmapList.get(getLayoutPosition())));
-//            view.getContext().startActivity(contentImageFullScreenIntent,
-//                    ActivityOptions.makeSceneTransitionAnimation(
-//                            (Activity) view.getContext(),
-//                            view, "sharedContentImageEnlarged").toBundle());
-//            return;
-//        }
     }
 
     public ContentImgAdapter(Context context, LinkedList<Bitmap> bitmapList) {
