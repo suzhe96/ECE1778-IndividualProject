@@ -6,26 +6,32 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
@@ -37,11 +43,17 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.ListResult;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.label.ImageLabel;
+import com.google.mlkit.vision.label.ImageLabeler;
+import com.google.mlkit.vision.label.ImageLabeling;
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 public class ProfilePage extends AppCompatActivity {
@@ -81,8 +93,10 @@ public class ProfilePage extends AppCompatActivity {
     private TextDataFragment profileTextProfileFrag = null;
     private ContentImgListFragment profileContentImgFrag = null;
 
-    // AsyncCallHandler On Start
-    private AsyncCallHandler profileAsyncHdlOnLoadContentImg = null;
+    // AsyncHandler On Start
+    private AsyncCallHandler profileAsyncHdlOnLoadContentImg;
+    // AsyncHandler for Content Uploading
+    private AsyncCallHandler profileAsyncHdlContentUpload;
 
     // 1M
     private static final long ONE_MEGABYTE = 1024 * 1024;
@@ -536,20 +550,65 @@ public class ProfilePage extends AppCompatActivity {
 //            imgView.setImageBitmap(utils.cropProfileBitmap(
 //                    profileBitmapCameraBuffer, false));
             imgView.setImageBitmap(profileBitmapCameraBuffer);
-            findViewById(R.id.profileDisplayMainPage).setVisibility(View.GONE);
+            findViewById(R.id.profileDisplayMainPage).setVisibility (View.GONE);
             findViewById(R.id.profileContentUploadPage).setVisibility(View.VISIBLE);
             findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.VISIBLE);
             findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadCaption).setVisibility(View.VISIBLE);
+            findViewById(R.id.profileContentUploadHashTagSwitch).setVisibility(View.VISIBLE);
             findViewById(R.id.profileContentUploadLoading).setVisibility(View.GONE);
         }
     }
 
-    private void profileContentUploadToStorage() {
-        StorageReference regStorageRef = mStorage.getReference();
+    private void profileContentUpload(String caption) {
+        // Tasks: 1. caption to FireStore; 2. contentImg to Storage
+        profileAsyncHdlContentUpload = new AsyncCallHandler(2);
+
+        // Get current timestamp
         String timestampString = utils.getCurrentTimestampString();
+
+
+        // upload caption + hashTag to FireStore
+        String doc = getString(R.string.firestore_category_caption) +
+                utils.processEmailString(profileUserEmail) +
+                getString(R.string.firestore_caption_delimiter) + timestampString;
+        DocumentReference docRef = FirebaseFirestore.getInstance().document(doc);
+
+        Map<String, Object> userData = new HashMap<String, Object>();
+        userData.put(getString(R.string.firestore_category_caption_doc_text), caption);
+        docRef.set(userData).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Log.d(LOG_TAG, "succeeded to sync caption to firestore.");
+                    profileAsyncHdlContentUpload.addSuccessfulTask();
+                    if (profileAsyncHdlContentUpload.waitForAllComplete()) {
+                        switchProfileUI(true);
+                    }
+                } else {
+                    Log.w(LOG_TAG, "failed to sync caption to firestore",
+                            task.getException());
+                    findViewById(R.id.profileContentUploadButtonConfirmed)
+                            .setVisibility(View.VISIBLE);
+                    findViewById(R.id.profileContentUploadButtonDiscard)
+                            .setVisibility(View.VISIBLE);
+                    findViewById(R.id.profileContentUploadCaption)
+                            .setVisibility(View.VISIBLE);
+                    findViewById(R.id.profileContentUploadHashTagSwitch)
+                            .setVisibility(View.VISIBLE);
+                    findViewById(R.id.profileContentUploadLoading)
+                            .setVisibility(View.GONE);
+                    Toast.makeText(ProfilePage.this,
+                            "FireStore Caption upload failed",
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        // upload contentImg to storage
+        StorageReference regStorageRef = mStorage.getReference();
         String key = getString(R.string.cloud_storage_content_img) +
                 utils.processEmailString(profileUserEmail) +"/" + timestampString;
-
         StorageReference regProfileContentImgRef = regStorageRef.child(key);
         UploadTask uploadTask = regProfileContentImgRef.putBytes(
                 utils.compressBitmapToByteArray(profileBitmapCameraBuffer));
@@ -560,6 +619,8 @@ public class ProfilePage extends AppCompatActivity {
                         exception);
                 findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.VISIBLE);
                 findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.VISIBLE);
+                findViewById(R.id.profileContentUploadCaption).setVisibility(View.VISIBLE);
+                findViewById(R.id.profileContentUploadHashTagSwitch).setVisibility(View.VISIBLE);
                 findViewById(R.id.profileContentUploadLoading).setVisibility(View.GONE);
                 Toast.makeText(ProfilePage.this,
                         "Storage: " + utils.fireStoreExceptionCode(exception),
@@ -575,18 +636,28 @@ public class ProfilePage extends AppCompatActivity {
                 Bitmap bitmap = utils.cropProfileBitmap(profileBitmapCameraBuffer, true);
                 profileBitmapListContentImg.addFirst(bitmap);
                 profileArrayListContentImgTimestamp.add(0, Long.parseLong(timestampString));
-                profileBitmapListContentImgGlobal.addLast(bitmap);
-                profileArrayListContentImgGlobalPrefix.add("/" + key);
+                if (profileGlobalViewInitialized) {
+                    profileBitmapListContentImgGlobal.addLast(bitmap);
+                    profileArrayListContentImgGlobalPrefix.add("/" + key);
+                }
+
+
 
                 if (profileViewSwitchIsGrid) {
                     mRecyclerView.getAdapter().notifyItemInserted(0);
+                    mRecyclerView.getAdapter().notifyDataSetChanged();
                     mRecyclerView.smoothScrollToPosition(0);
                 } else {
                     int size = profileBitmapListContentImgGlobal.size();
                     mRecyclerView.getAdapter().notifyItemInserted(size);
+                    mRecyclerView.getAdapter().notifyDataSetChanged();
                     mRecyclerView.smoothScrollToPosition(size);
                 }
-                switchProfileUI(true);
+                profileAsyncHdlContentUpload.addSuccessfulTask();
+                if (profileAsyncHdlContentUpload.waitForAllComplete()) {
+                    switchProfileUI(true);
+                }
+
             }
         });
     }
@@ -600,12 +671,52 @@ public class ProfilePage extends AppCompatActivity {
         // set loading icon to be visible
         findViewById(R.id.profileContentUploadButtonConfirmed).setVisibility(View.GONE);
         findViewById(R.id.profileContentUploadButtonDiscard).setVisibility(View.GONE);
+        findViewById(R.id.profileContentUploadCaption).setVisibility(View.GONE);
+        findViewById(R.id.profileContentUploadHashTagSwitch).setVisibility(View.GONE);
         findViewById(R.id.profileContentUploadLoading).setVisibility(View.VISIBLE);
-
-        // upload data to storage
-        profileContentUploadToStorage();
+        // prepare caption and hashTag
+        profileContentUploadGetCaption();
     }
 
+    private void profileContentUploadGetCaption() {
+        EditText captionEditText = findViewById(R.id.profileContentUploadCaption);
+        String captionText = captionEditText.getText().toString();
+        Switch autoHashTagSwitch = findViewById(R.id.profileContentUploadHashTagSwitch);
+        boolean enable = autoHashTagSwitch.isChecked();
+        if (!enable) {
+            profileContentUpload(captionText);
+        } else {
+            InputImage image = InputImage.fromBitmap(profileBitmapCameraBuffer, 0);
+             ImageLabelerOptions options =
+                new ImageLabelerOptions.Builder()
+                    .setConfidenceThreshold(0.7f)
+                        .build();
+            ImageLabeler labeler = ImageLabeling.getClient(options);
+            labeler.process(image)
+                    .addOnSuccessListener(new OnSuccessListener<List<ImageLabel>>() {
+                        @RequiresApi(api = Build.VERSION_CODES.O)
+                        @Override
+                        public void onSuccess(List<ImageLabel> labels) {
+                            Log.d(LOG_TAG, "Firebase ML kit getting successfully");
+                            ArrayList<String> labelArr = new ArrayList<String>();
+                            for (ImageLabel label : labels) {
+                                labelArr.add(label.getText());
+                            }
+                            String [] simpleArr = new String[ labelArr.size() ];
+                            labelArr.toArray(simpleArr);
+                            String hashTags = String.join(" #", simpleArr);
+                            profileContentUpload(captionText + "#" + hashTags);
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Log.w(LOG_TAG, "Google ML kit exception.", e);
+                        }
+                    });
+        }
+
+    }
 
 
     @Override

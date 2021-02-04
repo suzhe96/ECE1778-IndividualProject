@@ -36,11 +36,9 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Objects;
 
 public class Comment extends AppCompatActivity {
@@ -105,12 +103,12 @@ public class Comment extends AppCompatActivity {
                 utils.cropProfileBitmap(commentBitmap, false));
         commentRefString = getIntent().getStringExtra("extraStorageRef");
         loadCurrentUserInfo();
+        loadCaption();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        loadCaption();
         loadAllComments();
     }
 
@@ -212,8 +210,26 @@ public class Comment extends AppCompatActivity {
     }
 
     private void loadCaption() {
-        //TODO
-        commentTextViewCaption.setText("CAPTION TODO");
+        String [] localStr = commentRefString.split("/");
+        String timestamp = localStr[localStr.length - 1];
+        String contentImgOwner = commentRefString.split("/")[2];
+        String doc = getString(R.string.firestore_category_caption) +
+                contentImgOwner +
+                getString(R.string.firestore_caption_delimiter) + timestamp;
+        DocumentReference docRef = FirebaseFirestore.getInstance().document(doc);
+        docRef.addSnapshotListener(this, new EventListener<DocumentSnapshot>() {
+            @Override
+            public void onEvent(DocumentSnapshot docSnapShot, FirebaseFirestoreException error) {
+                if (docSnapShot.exists()) {
+                    String captionText = docSnapShot.getString(
+                            getString(R.string.firestore_category_caption_doc_text)
+                    );
+                    commentTextViewCaption.setText(captionText);
+                } else if (error != null) {
+                    Log.w(LOG_TAG, "get caption text firestore exception.", error);
+                }
+            }
+        });
     }
 
     @Override
@@ -244,8 +260,34 @@ public class Comment extends AppCompatActivity {
             Toast.makeText(this, "Unauthorized to delete", Toast.LENGTH_SHORT).show();
             return;
         }
-        // task: 1. delete all comment; 2. delete contentImage
-        commentAsyncHandlerPostDelete = new AsyncCallHandler(2);
+        // task: 1. delete all comment; 2. delete contentImage; 3. delete caption;
+        commentAsyncHandlerPostDelete = new AsyncCallHandler(3);
+
+        // delete caption
+        String [] localStr = commentRefString.split("/");
+        String timestamp = localStr[localStr.length - 1];
+        String doc = getString(R.string.firestore_category_caption) +
+                utils.processEmailString(commentCurrentUserEmail) +
+                getString(R.string.firestore_caption_delimiter) + timestamp;
+        DocumentReference docRef = FirebaseFirestore.getInstance().document(doc);
+        docRef.delete()
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(LOG_TAG, "caption successfully deleted!");
+                        commentAsyncHandlerPostDelete.addSuccessfulTask();
+                        if (commentAsyncHandlerPostDelete.waitForAllComplete()) {
+                            startActivity(
+                                    new Intent(Comment.this, ProfilePage.class));
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(LOG_TAG, "Error deleting caption", e);
+                    }
+                });
 
         // delete all comments
         FirebaseFirestore.getInstance()
@@ -281,7 +323,6 @@ public class Comment extends AppCompatActivity {
                 });
 
         // delete contentImage from storage
-        String [] localStr = commentRefString.split("/");
         String storage = getString(R.string.cloud_storage_content_img) +
                 utils.processEmailString(commentCurrentUserEmail) + "/" +
                 localStr[localStr.length - 1];

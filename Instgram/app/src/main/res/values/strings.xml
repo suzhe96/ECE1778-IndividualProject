@@ -2,11 +2,15 @@
     <string name="app_name">Instgram</string>
     <string name="extra_email">extraEmail</string>
     <string name="firestore_category_users">users/</string>
+    <string name="firestore_category_caption">caption/</string>
+    <string name="firestore_category_comments">comments</string>
     <string name="cloud_storage_profile_pic">profilePics/</string>
     <string name="cloud_storage_content_img">contentImages/</string>
     <string name="firestore_category_users_doc_username">usersDocUserName</string>
     <string name="firestore_category_users_doc_shortbio">usersDocShortBio</string>
+    <string name="firestore_category_caption_doc_text">captionText</string>
     <string name="pic_format_png">.png</string>
     <string name="extraContentImageBitmapByte">bitmap</string>
-    <string name="firestore_category_comments">comments</string>
+    <string name="firestore_caption_delimiter"><![CDATA[&]]></string>
+
 </resources>

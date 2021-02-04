@@ -78,7 +78,7 @@
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:id="@+id/profileContentUploadPage"
             android:visibility="gone">
@@ -91,14 +91,30 @@
             <ProgressBar
                 android:id="@+id/profileContentUploadLoading"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:indeterminate="true"
                 android:visibility="gone" />
+
+            <EditText
+                android:id="@+id/profileContentUploadCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="Caption">
+            </EditText>
+
+            <Switch
+                android:id="@+id/profileContentUploadHashTagSwitch"
+                android:layout_marginTop="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Enable Auto HashTag" />
 
             <Button
                 android:id="@+id/profileContentUploadButtonConfirmed"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="Upload"
                 android:onClick="profileContentUploadConfirmed"
@@ -106,7 +122,7 @@
             <Button
                 android:id="@+id/profileContentUploadButtonDiscard"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="Discard"
                 android:onClick="profileContentUploadDiscard"

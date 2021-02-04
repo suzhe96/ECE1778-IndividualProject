@@ -191,7 +191,7 @@ public class Register extends AppCompatActivity {
     }
 
 
-    private void syncDataToFirestore() {
+    private void syncDataToFireStore() {
         String userName = regEditTextUserName.getText().toString();
         String shortBio = regEditTextShortBio.getText().toString();
         String email = regEditTextEmail.getText().toString();
@@ -251,7 +251,7 @@ public class Register extends AppCompatActivity {
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
                             Log.d(LOG_TAG, "Log in successfully in regSignUp");
-                            syncDataToFirestore();
+                            syncDataToFireStore();
                         } else {
                             Log.w(LOG_TAG, "createUserWithEmail:failure",
                                     task.getException());
