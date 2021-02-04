@@ -175,11 +175,22 @@ public class ProfilePage extends AppCompatActivity {
         });
     }
 
+    private void updateGlobalViewUI(Boolean globalView) {
+        if (globalView) {
+            findViewById(R.id.profileHeader).setVisibility(View.GONE);
+        } else {
+            findViewById(R.id.profileHeader).setVisibility(View.VISIBLE);
+        }
+    }
+
     private void switchToGlobalView() {
         // switch to global view
         mRecyclerView.setAdapter(mAdapterGlobal);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(ProfilePage.this));
         mAdapterGlobal.notifyDataSetChanged();
+
+        // Header Hide
+        updateGlobalViewUI(true);
 
         // to see if need fetch resource from the storage
         if (profileGlobalViewInitialized) {
@@ -439,6 +450,7 @@ public class ProfilePage extends AppCompatActivity {
                     mRecyclerView.setLayoutManager(
                             new GridLayoutManager(ProfilePage.this, 3));
                     mAdapter.notifyDataSetChanged();
+                    updateGlobalViewUI(false);
                 }
                 break;
             default:
