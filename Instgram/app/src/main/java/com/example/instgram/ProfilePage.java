@@ -353,12 +353,16 @@ public class ProfilePage extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<ListResult>() {
                     @Override
                     public void onSuccess(ListResult listResult) {
+                        Log.d(LOG_TAG, "getting contentImg list successfully");
                         profileAsyncHdlOnLoadContentImg =
                                 new AsyncCallHandler(listResult.getItems().size());
                         for (StorageReference item : listResult.getItems()) {
                             Log.w(LOG_TAG, item.getPath());
                             loadContentImgFromStorage(item,
                                     utils.getTimeStampFromStorageRef(item.getPath()));
+                        }
+                        if (profileAsyncHdlOnLoadContentImg.waitForAllComplete()) {
+                            setVisibilityForDone(true);
                         }
                     }
                 })
