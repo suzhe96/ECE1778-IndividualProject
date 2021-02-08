@@ -101,7 +101,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="Caption">
+                android:maxLength="60"
+                android:hint="Caption (60 characters max)">
             </EditText>
 
             <Switch

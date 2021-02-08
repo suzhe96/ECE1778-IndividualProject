@@ -6,6 +6,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,6 +15,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -406,6 +408,14 @@ public class Comment extends AppCompatActivity {
                                             words, commentCurrentUserPhoto));
                             commentAdapter.notifyItemInserted(0);
                             commentRecyclerView.smoothScrollToPosition(0);
+
+                            InputMethodManager inputMethodManager =
+                                    (InputMethodManager)getSystemService(
+                                            Context.INPUT_METHOD_SERVICE);
+                            inputMethodManager.
+                                    hideSoftInputFromWindow(commentEditText.getWindowToken(),
+                                            InputMethodManager.HIDE_NOT_ALWAYS);
+                            commentEditText.setText("");
                         } else {
                             Log.w(LOG_TAG, "add comment to firestore failed",
                                     task.getException());

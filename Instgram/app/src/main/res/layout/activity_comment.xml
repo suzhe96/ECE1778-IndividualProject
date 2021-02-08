@@ -69,6 +69,8 @@
                         android:id="@+id/commentText"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:maxLength="60"
+                        android:hint="Comment (60 characters max)"
                         android:layout_toStartOf="@id/commentSentIcon">
                     </EditText>
                     <ImageButton
