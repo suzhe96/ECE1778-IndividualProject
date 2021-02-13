@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -90,6 +91,12 @@ public class ProfilePage extends AppCompatActivity {
     private BitmapDataFragment profileBitmapProfileFrag = null;
     private TextDataFragment profileTextProfileFrag = null;
     private ContentImgListFragment profileContentImgFrag = null;
+
+    // Switch
+    private Switch profileTagSwitch;
+
+    // EditText
+    private EditText profileEditTextCaption;
 
     // AsyncHandler On Start
     private AsyncCallHandler profileAsyncHdlOnLoadContentImg;
@@ -308,6 +315,9 @@ public class ProfilePage extends AppCompatActivity {
         // Initialize Intent
         profileIntentSignOut = new Intent(this, MainActivity.class);
 
+        // Initialize Caption EditText
+        profileEditTextCaption = findViewById(R.id.profileContentUploadCaption);
+
         // Initialize UserEmail
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) {
@@ -349,6 +359,56 @@ public class ProfilePage extends AppCompatActivity {
         // Give the recycler view a default layout manager.
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
         profileViewSwitchIsGrid = true;
+
+        // Set listener when enable AI HashTags
+        profileTagSwitch = (Switch)findViewById(R.id.profileContentUploadHashTagSwitch);
+        profileTagSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (!isChecked) {
+                    return;
+                }
+                String captionText = profileEditTextCaption.getText().toString();
+                InputImage image = InputImage.fromBitmap(profileBitmapCameraBuffer, 0);
+                ImageLabelerOptions options =
+                        new ImageLabelerOptions.Builder()
+                                .setConfidenceThreshold(0.7f)
+                                .build();
+                ImageLabeler labeler = ImageLabeling.getClient(options);
+                labeler.process(image)
+                        .addOnSuccessListener(new OnSuccessListener<List<ImageLabel>>() {
+                            @RequiresApi(api = Build.VERSION_CODES.O)
+                            @Override
+                            public void onSuccess(List<ImageLabel> labels) {
+                                Log.d(LOG_TAG, "Firebase ML kit getting successfully");
+                                ArrayList<String> labelArr = new ArrayList<String>();
+                                for (ImageLabel label : labels) {
+                                    labelArr.add(label.getText());
+                                }
+                                if (labelArr.size() != 0) {
+                                    String[] simpleArr = new String[labelArr.size()];
+                                    labelArr.toArray(simpleArr);
+                                    String hashTags = "#" + String.join(" #", simpleArr);
+                                    profileEditTextCaption.setText(captionText + hashTags);
+                                }
+//                                profileContentUpload();
+
+                            }
+                        })
+                        .addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                Toast.makeText(ProfilePage.this,
+                                        "Failed to add HashTags", Toast.LENGTH_SHORT).show();
+                                Log.w(LOG_TAG, "Google ML kit exception.", e);
+                            }
+                        });
+            }
+        });
+
+
+
+
 
         // Retain fragment instance
         profileRetainingFragment();
@@ -570,13 +630,14 @@ public class ProfilePage extends AppCompatActivity {
         }
     }
 
-    private void profileContentUpload(String caption) {
+    private void  profileContentUpload() {
         // Tasks: 1. caption to FireStore; 2. contentImg to Storage
         profileAsyncHdlContentUpload = new AsyncCallHandler(2);
 
         // Get current timestamp
         String timestampString = utils.getCurrentTimestampString();
-
+        // Get caption
+        String caption = profileEditTextCaption.getText().toString();
 
         // upload caption + hashTag to FireStore
         String doc = getString(R.string.firestore_category_caption) +
@@ -593,6 +654,8 @@ public class ProfilePage extends AppCompatActivity {
                     Log.d(LOG_TAG, "succeeded to sync caption to firestore.");
                     profileAsyncHdlContentUpload.addSuccessfulTask();
                     if (profileAsyncHdlContentUpload.waitForAllComplete()) {
+                        profileEditTextCaption.setText("");
+                        profileTagSwitch.setChecked(false);
                         switchProfileUI(true);
                     }
                 } else {
@@ -665,6 +728,8 @@ public class ProfilePage extends AppCompatActivity {
                 }
                 profileAsyncHdlContentUpload.addSuccessfulTask();
                 if (profileAsyncHdlContentUpload.waitForAllComplete()) {
+                    profileEditTextCaption.setText("");
+                    profileTagSwitch.setChecked(false);
                     switchProfileUI(true);
                 }
 
@@ -673,6 +738,8 @@ public class ProfilePage extends AppCompatActivity {
     }
 
     public void profileContentUploadDiscard(View view) {
+        profileEditTextCaption.setText("");
+        profileTagSwitch.setChecked(false);
         // update UI element
         switchProfileUI(true);
     }
@@ -684,48 +751,7 @@ public class ProfilePage extends AppCompatActivity {
         findViewById(R.id.profileContentUploadCaption).setVisibility(View.GONE);
         findViewById(R.id.profileContentUploadHashTagSwitch).setVisibility(View.GONE);
         findViewById(R.id.profileContentUploadLoading).setVisibility(View.VISIBLE);
-        // prepare caption and hashTag
-        profileContentUploadGetCaption();
-    }
-
-    private void profileContentUploadGetCaption() {
-        EditText captionEditText = findViewById(R.id.profileContentUploadCaption);
-        String captionText = captionEditText.getText().toString();
-        Switch autoHashTagSwitch = findViewById(R.id.profileContentUploadHashTagSwitch);
-        boolean enable = autoHashTagSwitch.isChecked();
-        if (!enable) {
-            profileContentUpload(captionText);
-        } else {
-            InputImage image = InputImage.fromBitmap(profileBitmapCameraBuffer, 0);
-             ImageLabelerOptions options =
-                new ImageLabelerOptions.Builder()
-                    .setConfidenceThreshold(0.7f)
-                        .build();
-            ImageLabeler labeler = ImageLabeling.getClient(options);
-            labeler.process(image)
-                    .addOnSuccessListener(new OnSuccessListener<List<ImageLabel>>() {
-                        @RequiresApi(api = Build.VERSION_CODES.O)
-                        @Override
-                        public void onSuccess(List<ImageLabel> labels) {
-                            Log.d(LOG_TAG, "Firebase ML kit getting successfully");
-                            ArrayList<String> labelArr = new ArrayList<String>();
-                            for (ImageLabel label : labels) {
-                                labelArr.add(label.getText());
-                            }
-                            String [] simpleArr = new String[ labelArr.size() ];
-                            labelArr.toArray(simpleArr);
-                            String hashTags = String.join(" #", simpleArr);
-                            profileContentUpload(captionText + "#" + hashTags);
-                        }
-                    })
-                    .addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Log.w(LOG_TAG, "Google ML kit exception.", e);
-                        }
-                    });
-        }
-
+        profileContentUpload();
     }
 
 
